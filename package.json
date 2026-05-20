@@ -1,0 +1,24 @@
+{
+  "name": "onsewinkel-ems",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Onse Winkel PTY LTD — Employee Management System (local-first)",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm install --workspaces",
+    "migrate": "npm --workspace server run migrate",
+    "seed": "npm --workspace server run seed",
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "dev": "concurrently -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "build": "npm --workspace client run build",
+    "start": "NODE_ENV=production npm --workspace server run start",
+    "setup": "npm install --workspaces && npm run migrate && npm run seed && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

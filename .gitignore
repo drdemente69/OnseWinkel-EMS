@@ -1,0 +1,12 @@
+node_modules/
+data/ems.db
+data/ems.db-shm
+data/ems.db-wal
+data/uploads/
+data/timesheets/
+data/payslips/
+data/backups/
+.env
+client/dist/
+*.log
+.DS_Store
