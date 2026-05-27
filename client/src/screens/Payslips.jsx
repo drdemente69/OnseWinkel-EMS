@@ -147,13 +147,24 @@ function PayslipPeriodCard({ group, defaultOpen, canDelete, onRowClick, onRemove
             </tr>
           </thead>
           <tbody>
-            {group.rows.map(p => (
-              <tr key={p.id} onClick={() => onRowClick(p)}>
+            {group.rows.map(p => {
+              const isInactive = p.employee_status && p.employee_status !== 'active';
+              return (
+              <tr key={p.id} onClick={() => onRowClick(p)} style={isInactive ? { opacity: 0.85 } : undefined}>
                 <td>
                   <div style={{display:'flex', alignItems:'center', gap:10}}>
                     <span className="avatar avatar-sm">{initials(p.first_name, p.last_name)}</span>
                     <div style={{lineHeight:1.25}}>
-                      <div style={{fontWeight:500}}>{p.first_name} {p.last_name}</div>
+                      <div style={{display:'flex', alignItems:'center', gap:6, fontWeight:500}}>
+                        <span>{p.first_name} {p.last_name}</span>
+                        {isInactive && (
+                          <span className="badge"
+                            title={`Employee is currently ${p.employee_status} — payslip kept as a historical record`}
+                            style={{ fontSize:10, padding:'1px 6px', textTransform:'capitalize' }}>
+                            {p.employee_status}
+                          </span>
+                        )}
+                      </div>
                       <div style={{fontSize:11.5, color:'var(--text-3)'}}>{p.position}</div>
                     </div>
                   </div>
@@ -169,7 +180,8 @@ function PayslipPeriodCard({ group, defaultOpen, canDelete, onRowClick, onRemove
                   {canDelete && <button className="btn btn-ghost btn-icon-sm" onClick={e => { e.stopPropagation(); onRemove(p); }} title="Delete payslip"><I.Trash size={13}/></button>}
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {/* Period totals row */}
             <tr style={{background:'var(--surface-2)'}}>
               <td style={{fontWeight:600, fontSize:12.5, color:'var(--text-2)'}}>Period totals</td>

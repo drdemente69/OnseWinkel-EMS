@@ -113,16 +113,19 @@ function drawEmployeeStrip(doc, leftX, pageWidth, employee, period) {
 }
 
 function drawAttendanceTable(doc, leftX, pageWidth, rows) {
-  // Columns: Date | Day | Type | Start | End | Break | Hours | OT
+  // Columns: Date | Day | Type | Start | End | Lunch | Hours | OT
+  // The LUNCH column shows the actual lunch break time range
+  // (e.g. "12:00 – 13:00"), replacing the previous BREAK-in-minutes display.
+  // Widths sum to 1.00 and give the lunch column enough room for "HH:MM – HH:MM".
   const cols = [
-    { key: 'date',   label: 'DATE',  w: 0.16, align: 'left' },
+    { key: 'date',   label: 'DATE',  w: 0.15, align: 'left' },
     { key: 'day',    label: 'DAY',   w: 0.07, align: 'left' },
-    { key: 'type',   label: 'TYPE',  w: 0.20, align: 'left' },
-    { key: 'start',  label: 'START', w: 0.10, align: 'right' },
-    { key: 'end',    label: 'END',   w: 0.10, align: 'right' },
-    { key: 'break',  label: 'BREAK', w: 0.10, align: 'right' },
+    { key: 'type',   label: 'TYPE',  w: 0.16, align: 'left' },
+    { key: 'start',  label: 'START', w: 0.08, align: 'right' },
+    { key: 'end',    label: 'END',   w: 0.08, align: 'right' },
+    { key: 'lunch',  label: 'LUNCH', w: 0.18, align: 'right' },
     { key: 'hours',  label: 'HOURS', w: 0.13, align: 'right' },
-    { key: 'ot',     label: 'OT',    w: 0.14, align: 'right' },
+    { key: 'ot',     label: 'OT',    w: 0.15, align: 'right' },
   ];
   const xs = []; let acc = leftX;
   for (const c of cols) { xs.push(acc); acc += pageWidth * c.w; }
@@ -150,14 +153,17 @@ function drawAttendanceTable(doc, leftX, pageWidth, rows) {
       y = doc.page.margins.top;
     }
     const empty = !r.hasEntry;
+    const lunch = (r.lunch_start && r.lunch_end)
+      ? `${r.lunch_start} - ${r.lunch_end}`
+      : '–';
     doc.fillColor(empty ? EMPTY : TEXT);
     doc.text(fmtDate(r.date),                        xs[0] + 6, y + 1, { width: pageWidth * cols[0].w - 6 });
     doc.text(fmtDayOfWeek(r.date),                   xs[1] + 6, y + 1, { width: pageWidth * cols[1].w - 6 });
     doc.text(empty ? '—' : (TYPE_LABEL[r.type] || r.type), xs[2] + 6, y + 1, { width: pageWidth * cols[2].w - 6 });
     doc.font('Courier').text(empty ? '–' : (r.start_time || '–'),  xs[3], y + 1, { width: pageWidth * cols[3].w - 6, align: 'right' });
     doc.text(empty ? '–' : (r.end_time || '–'),    xs[4], y + 1, { width: pageWidth * cols[4].w - 6, align: 'right' });
-    doc.text(empty ? '–' : `${NUM(r.break_min)} min`, xs[5], y + 1, { width: pageWidth * cols[5].w - 6, align: 'right' });
-    doc.text(empty ? '–' : NUM(r.hours, 2),          xs[6], y + 1, { width: pageWidth * cols[6].w - 6, align: 'right' });
+    doc.text(empty ? '–' : lunch,                   xs[5], y + 1, { width: pageWidth * cols[5].w - 6, align: 'right' });
+    doc.text(empty ? '–' : NUM(r.hours, 2),         xs[6], y + 1, { width: pageWidth * cols[6].w - 6, align: 'right' });
     doc.text(empty || !r.overtime ? '–' : NUM(r.overtime, 2), xs[7], y + 1, { width: pageWidth * cols[7].w - 6, align: 'right' });
     doc.font('Helvetica').fontSize(9);
     doc.moveTo(leftX, y + rowH).lineTo(leftX + pageWidth, y + rowH).strokeColor(ROW_LINE).lineWidth(0.4).stroke();
@@ -168,30 +174,34 @@ function drawAttendanceTable(doc, leftX, pageWidth, rows) {
 
 function drawTotals(doc, leftX, pageWidth, totals) {
   const y = doc.y + 6;
+  // 7 short labels stacked above their numeric totals. The previous design
+  // used wide labels ("SUNDAY/HOLIDAY", "PUBLIC HOL.") with letter-spacing,
+  // which wrapped into the line below in narrow cells. Labels are now short
+  // and drawn without character spacing so they fit on a single line.
+  const boxH = 36;
   doc.save();
-  doc.rect(leftX, y, pageWidth, 22).fill(CREAM);
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(BROWN);
+  doc.rect(leftX, y, pageWidth, boxH).fill(CREAM);
   const cells = [
-    ['Normal',         NUM(totals.normal, 2)],
-    ['Overtime',       NUM(totals.overtime, 2)],
-    ['Sunday/Holiday', NUM(totals.holiday, 2)],
-    ['Public hol.',    NUM(totals.publicHoliday, 2)],
-    ['Sick',           NUM(totals.sick, 2)],
-    ['Leave',          NUM(totals.leave, 2)],
-    ['TOTAL',          NUM(totals.grandTotal, 2)],
+    ['Normal',    NUM(totals.normal, 2)],
+    ['Overtime',  NUM(totals.overtime, 2)],
+    ['Sun/Hol.',  NUM(totals.holiday, 2)],
+    ['Pub. hol.', NUM(totals.publicHoliday, 2)],
+    ['Sick',      NUM(totals.sick, 2)],
+    ['Leave',     NUM(totals.leave, 2)],
+    ['Total',     NUM(totals.grandTotal, 2)],
   ];
   const cellW = pageWidth / cells.length;
   cells.forEach((c, i) => {
     const cx = leftX + i * cellW;
     doc.fillColor(MUTED).font('Helvetica').fontSize(7.5)
-      .text(c[0].toUpperCase(), cx, y + 4, { width: cellW, align: 'center', characterSpacing: 1.1 });
+      .text(c[0].toUpperCase(), cx, y + 5, { width: cellW, align: 'center' });
     doc.fillColor(i === cells.length - 1 ? BROWN : TEXT).font('Helvetica-Bold').fontSize(11)
-      .text(c[1], cx, y + 13, { width: cellW, align: 'center' });
+      .text(c[1], cx, y + 18, { width: cellW, align: 'center' });
   });
-  doc.moveTo(leftX, y + 22).lineTo(leftX + pageWidth, y + 22)
+  doc.moveTo(leftX, y + boxH).lineTo(leftX + pageWidth, y + boxH)
     .lineWidth(1.5).strokeColor(BROWN).stroke();
   doc.restore();
-  doc.y = y + 30;
+  doc.y = y + boxH + 8;
 }
 
 function drawFooter(doc, leftX, pageWidth, company) {

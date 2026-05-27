@@ -26,13 +26,22 @@ export default function AttendanceCalendar({ employee: empProp, embedded, onChan
     if (!empProp) setEmployeeId(activeEmployees[0]?.id || null);
   }, [activeEmployees, empProp]);
 
+  // Always fetch the latest data when reloading. If we reused `empProp` here
+  // (the snapshot from the parent), the local attendance state would lag a
+  // step behind after every save and the day editor would re-open with stale
+  // lunch_start/lunch_end values, falling back to the 12:00/13:00 defaults.
   const reload = async (id = employeeId) => {
     if (!id) return;
-    const emp = empProp || await api.getEmployee(id);
+    const emp = await api.getEmployee(id);
     setEmployee(emp);
     setAttendance(emp.attendance || []);
   };
   useEffect(() => { reload(); }, [employeeId]);
+  // If the parent re-renders with a fresh empProp (e.g. after Profile reloads
+  // the employee), pull the new attendance in too.
+  useEffect(() => {
+    if (empProp?.attendance) setAttendance(empProp.attendance);
+  }, [empProp?.attendance]);
 
   // Build a 42-cell grid that fully contains the pay period (start of week of
   // period.start through end of week of period.end), aligned Sunday-first.

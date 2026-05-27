@@ -21,14 +21,20 @@ function getRules() {
 }
 
 // All payslips (joined with employee for list view).
-// Inactive/archived employees' payslips are hidden here — they remain
-// reachable from inside the Employees menu via that employee's profile.
+//
+// Historical payslips are FINANCIAL RECORDS — once generated, they should
+// always show up in the Payslips section regardless of the employee's
+// current status. The PayslipBuilder still scopes its employee picker to
+// active employees (handled client-side), so you can't *generate* new
+// payslips for inactive people, but the records you've already issued
+// remain visible. `employee_status` is surfaced so the UI can show an
+// "Inactive" badge alongside the name.
 router.get('/', (req, res) => {
   const rows = db.prepare(`
-    SELECT p.*, e.first_name, e.last_name, e.employee_no, e.position
+    SELECT p.*, e.first_name, e.last_name, e.employee_no, e.position,
+           e.status AS employee_status
     FROM payslips p
     JOIN employees e ON e.id = p.employee_id
-    WHERE e.status = 'active'
     ORDER BY p.pay_date DESC`).all();
   res.json(rows);
 });
