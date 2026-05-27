@@ -225,8 +225,11 @@ export default function AttendanceCalendar({ employee: empProp, embedded, onChan
           avgDaily={totals.avgDaily}
           readOnly={!canEdit}
           onClose={() => setSelectedDay(null)}
-          onSave={(patch) => { saveEntry(selectedDay.date, patch); setSelectedDay(null); }}
-          onDelete={() => { deleteEntry(selectedDay.date); setSelectedDay(null); }}/>
+          // Await the save+reload before closing the modal, otherwise a fast
+          // reopen reads stale attendance state and the lunch fields revert
+          // to their 12:00/13:00 defaults.
+          onSave={async (patch) => { await saveEntry(selectedDay.date, patch); setSelectedDay(null); }}
+          onDelete={async () => { await deleteEntry(selectedDay.date); setSelectedDay(null); }}/>
       )}
     </div>
   );
@@ -294,28 +297,51 @@ function DayEditor({ day, employee, onClose, onSave, onDelete, readOnly, avgDail
     }
   }, [start, end, breakMin, type]);
 
-  const save = () => {
-    onSave({
-      type,
-      start_time: start, end_time: end,
-      break_min:  Number(breakMin),
-      lunch_start: lunchTaken ? lunchStart : null,
-      lunch_end:   lunchTaken ? lunchEnd   : null,
-      hours: Number(hours),
-      overtime: Number(overtime),
-    });
+  // `busy` keeps the modal open while the parent's onSave (which now awaits
+  // the server PUT + the local reload) is in flight. Stops fast double-clicks
+  // from beating the round-trip and reading stale attendance state.
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await onSave({
+        type,
+        start_time: start, end_time: end,
+        break_min:  Number(breakMin),
+        lunch_start: lunchTaken ? lunchStart : null,
+        lunch_end:   lunchTaken ? lunchEnd   : null,
+        hours: Number(hours),
+        overtime: Number(overtime),
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const deleteWithBusy = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await onDelete(); } finally { setBusy(false); }
   };
 
   const usesTimes = type === 'normal' || type === 'sunday' || type === 'holiday_worked';
 
   return (
-    <Modal open onClose={onClose}
+    <Modal open onClose={busy ? () => {} : onClose}
       title={fmtDate(day.date.toISOString(), { weekday:'long' })}
       footer={
         <>
-          {day.entry && !readOnly && <button className="btn btn-danger" onClick={onDelete}><I.Trash/> Delete</button>}
-          <button className="btn btn-ghost" onClick={onClose}>{readOnly ? 'Close' : 'Cancel'}</button>
-          {!readOnly && <button className="btn btn-accent" onClick={save}><I.Check/> Save day</button>}
+          {day.entry && !readOnly && (
+            <button className="btn btn-danger" onClick={deleteWithBusy} disabled={busy}>
+              <I.Trash/> Delete
+            </button>
+          )}
+          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>{readOnly ? 'Close' : 'Cancel'}</button>
+          {!readOnly && (
+            <button className="btn btn-accent" onClick={save} disabled={busy}>
+              <I.Check/> {busy ? 'Saving…' : 'Save day'}
+            </button>
+          )}
         </>
       }>
       <div style={{display:'flex', flexDirection:'column', gap:14}}>
