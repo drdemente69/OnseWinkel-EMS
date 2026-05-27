@@ -10,12 +10,15 @@ import { requirePermission } from '../services/auth.js';
 const router = express.Router();
 const upload = makeUploader('employees');
 
-// Global list (across all employees)
+// Global list (across all active employees).
+// Documents belonging to inactive/archived employees stay reachable through
+// the Employees → Profile → Documents tab, but never surface in this global
+// vault list.
 router.get('/', (req, res) => {
   const { q, tag, employeeId } = req.query;
   let sql = `SELECT d.*, e.first_name, e.last_name FROM documents d
-             LEFT JOIN employees e ON e.id = d.employee_id`;
-  const where = [];
+             JOIN employees e ON e.id = d.employee_id`;
+  const where = [`e.status = 'active'`];
   const params = {};
   if (employeeId) { where.push('d.employee_id = @employeeId'); params.employeeId = employeeId; }
   if (tag && tag !== 'all') { where.push('d.tag = @tag'); params.tag = tag; }
@@ -23,7 +26,7 @@ router.get('/', (req, res) => {
     where.push('(d.name LIKE @q OR d.tag LIKE @q OR e.first_name LIKE @q OR e.last_name LIKE @q)');
     params.q = `%${q}%`;
   }
-  if (where.length) sql += ' WHERE ' + where.join(' AND ');
+  sql += ' WHERE ' + where.join(' AND ');
   sql += ' ORDER BY d.uploaded_at DESC';
   res.json(db.prepare(sql).all(params));
 });

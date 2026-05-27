@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { api, auth, onUnauthorized } from './api';
 
 const StoreContext = createContext(null);
@@ -72,10 +72,19 @@ export function StoreProvider({ children }) {
   const isOwner = !!user?.is_owner;
   const can = (perm) => isOwner || user?.permissions?.[perm] === true;
 
+  // `employees` is the full set (used by the Employees menu + profile lookups
+  // in breadcrumbs). Every other UI surface — dropdowns, dashboard widgets,
+  // search — uses `activeEmployees` so inactive/archived people stay scoped
+  // to the Employees menu only.
+  const activeEmployees = useMemo(
+    () => employees.filter(e => e.status === 'active'),
+    [employees],
+  );
+
   const value = {
     user, authStatus, signIn, signOut,
     isOwner, can,
-    employees, settings, loading, error, refresh,
+    employees, activeEmployees, settings, loading, error, refresh,
     setEmployees, setSettings,
   };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

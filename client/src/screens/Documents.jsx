@@ -102,7 +102,9 @@ export default function DocumentsAll({ go }) {
 }
 
 function UploadModal({ open, onClose, onUploaded }) {
-  const { employees } = useStore();
+  // Uploads are tagged to active employees only — archived/inactive profiles
+  // are kept out of this picker on purpose.
+  const { activeEmployees: employees } = useStore();
   const fileRef = useRef(null);
   const [files, setFiles] = useState([]);
   const [employeeId, setEmployeeId] = useState(employees[0]?.id || '');

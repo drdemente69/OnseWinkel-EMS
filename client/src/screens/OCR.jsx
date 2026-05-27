@@ -57,7 +57,9 @@ function realignToPeriod(currentRows, period) {
 }
 
 export default function OCRFlow({ go }) {
-  const { employees } = useStore();
+  // OCR commits go to active employees only; inactive/archived people are
+  // hidden from the picker just like elsewhere outside the Employees menu.
+  const { activeEmployees: employees } = useStore();
   const [stage, setStage] = useState('upload'); // upload | processing | review | imported
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);

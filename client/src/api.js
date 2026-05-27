@@ -51,6 +51,14 @@ async function req(path, opts = {}) {
 export const api = {
   health: () => req('/health'),
   dashboard: () => req('/dashboard'),
+  hoursBreakdown: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return req(`/dashboard/hours-breakdown${qs ? `?${qs}` : ''}`);
+  },
+  attendancePdfUrl: (params = {}) => {
+    const qs = new URLSearchParams({ ...params, token: auth.token || '' }).toString();
+    return `${base}/attendance/pdf?${qs}`;
+  },
   search: (q) => req(`/dashboard/search?q=${encodeURIComponent(q)}`),
 
   // ---- Auth

@@ -19,10 +19,49 @@ export function PayslipsList({ go }) {
     catch (e) { alert(e.message); }
   };
 
+  // Group every payslip by its period_label so the screen reads as a stack of
+  // pay-cycle cards rather than one long flat table. Within each card the
+  // payslips stay sorted by employee name.
+  const groups = useMemo(() => {
+    const map = new Map();
+    for (const p of all) {
+      const key = p.period_label || '—';
+      if (!map.has(key)) {
+        map.set(key, {
+          label: key,
+          period_start: p.period_start,
+          period_end: p.period_end,
+          pay_date: p.pay_date,
+          rows: [],
+          totals: { gross: 0, uif: 0, net: 0, hours: 0, publicHolidayPay: 0 },
+        });
+      }
+      const g = map.get(key);
+      g.rows.push(p);
+      g.totals.gross += Number(p.gross) || 0;
+      g.totals.uif   += Number(p.uif)   || 0;
+      g.totals.net   += Number(p.net)   || 0;
+      g.totals.hours += (Number(p.normal_hours)||0) + (Number(p.overtime_hours)||0)
+                     + (Number(p.holiday_hours)||0) + (Number(p.public_holiday_hours)||0);
+      g.totals.publicHolidayPay += Number(p.public_holiday_pay) || 0;
+      // Earliest period_start/end and latest pay_date wins for header display.
+      if (p.period_start && (!g.period_start || p.period_start < g.period_start)) g.period_start = p.period_start;
+      if (p.period_end   && (!g.period_end   || p.period_end   > g.period_end))   g.period_end   = p.period_end;
+      if (p.pay_date     && (!g.pay_date     || p.pay_date     > g.pay_date))     g.pay_date     = p.pay_date;
+    }
+    const list = [...map.values()];
+    for (const g of list) {
+      g.rows.sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`));
+    }
+    // Newest pay cycle first.
+    list.sort((a, b) => (b.pay_date || '').localeCompare(a.pay_date || ''));
+    return list;
+  }, [all]);
+
   return (
     <div className="page fade-in">
       <PageHeader title="Payslips"
-        subtitle={`${all.length} payslips generated · Total R${ytd.toFixed(2)}`}
+        subtitle={`${all.length} payslips across ${groups.length} pay ${groups.length === 1 ? 'period' : 'periods'} · Total ${ZAR(ytd)}`}
         actions={
           <>
             <a className="btn" href="/api/backup/export"><I.Download/> Export all</a>
@@ -30,20 +69,86 @@ export function PayslipsList({ go }) {
           </>
         }/>
 
-      <div className="card" style={{overflow:'hidden'}}>
+      {groups.length === 0 && (
+        <div className="card"><div className="empty" style={{padding:48}}>
+          <I.Receipt size={28}/>
+          <h4>No payslips yet</h4>
+          <p>Generate your first one to get the period view rolling.</p>
+          {can('payslips:create') && <button className="btn btn-accent" onClick={() => go('#/payslips/new')}><I.Plus/> New payslip</button>}
+        </div></div>
+      )}
+
+      <div className="col" style={{gap:16}}>
+        {groups.map((group, idx) => (
+          <PayslipPeriodCard
+            key={group.label}
+            group={group}
+            defaultOpen={idx === 0}
+            canDelete={can('payslips:delete')}
+            onRowClick={p => go(`#/payslips/view/${p.employee_id}/${p.id}`)}
+            onRemove={remove}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PayslipPeriodCard({ group, defaultOpen, canDelete, onRowClick, onRemove }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <div className="card">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="card-head"
+        style={{
+          width:'100%', textAlign:'left', cursor:'pointer',
+          background: 'transparent', border: 'none',
+          borderBottom: open ? '1px solid var(--border)' : 'none',
+          padding: '14px 18px',
+        }}>
+        <div style={{display:'flex', alignItems:'center', gap:10}}>
+          <I.ChevronRight size={14} style={{transform: open ? 'rotate(90deg)' : 'none', transition:'transform 120ms ease'}}/>
+          <div>
+            <h3 style={{margin:0}}>{group.label}</h3>
+            <div className="sub">
+              {group.period_start && group.period_end
+                ? <>{fmtDate(group.period_start)} → {fmtDate(group.period_end)}</>
+                : '—'}
+              {group.pay_date && <> · Paid {fmtDate(group.pay_date)}</>}
+            </div>
+          </div>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:24}}>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:10.5, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:500}}>
+              {group.rows.length} {group.rows.length === 1 ? 'payslip' : 'payslips'}
+            </div>
+            <div className="num" style={{fontSize:14, fontWeight:600}}>{ZAR(group.totals.gross)}</div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:10.5, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:500}}>Total net</div>
+            <div className="num" style={{fontSize:14, fontWeight:600, color:'var(--accent-fg)'}}>{ZAR(group.totals.net)}</div>
+          </div>
+        </div>
+      </button>
+
+      {open && (
         <table className="table">
           <thead>
-            <tr><th>Employee</th><th>Period</th><th>Pay date</th>
+            <tr>
+              <th>Employee</th>
               <th className="right">Hours</th>
               <th className="right">Public hol.</th>
               <th className="right">Gross</th>
               <th className="right">UIF</th>
               <th className="right">Net</th>
-              <th></th></tr>
+              <th className="actions"></th>
+            </tr>
           </thead>
           <tbody>
-            {all.map(p => (
-              <tr key={p.id} onClick={() => go(`#/payslips/view/${p.employee_id}/${p.id}`)}>
+            {group.rows.map(p => (
+              <tr key={p.id} onClick={() => onRowClick(p)}>
                 <td>
                   <div style={{display:'flex', alignItems:'center', gap:10}}>
                     <span className="avatar avatar-sm">{initials(p.first_name, p.last_name)}</span>
@@ -53,8 +158,6 @@ export function PayslipsList({ go }) {
                     </div>
                   </div>
                 </td>
-                <td><strong>{p.period_label}</strong></td>
-                <td className="muted">{fmtDate(p.pay_date)}</td>
                 <td className="right num muted">{NUM((p.normal_hours||0)+(p.overtime_hours||0)+(p.holiday_hours||0)+(p.public_holiday_hours||0), 0)}h</td>
                 <td className="right num muted">{ZAR(p.public_holiday_pay)}</td>
                 <td className="right num">{ZAR(p.gross)}</td>
@@ -63,21 +166,35 @@ export function PayslipsList({ go }) {
                 <td className="actions">
                   <a className="btn btn-ghost btn-icon-sm" href={api.payslipPdfUrl(p.id)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} title="View PDF"><I.Eye size={13}/></a>
                   <a className="btn btn-ghost btn-icon-sm" href={api.payslipPdfUrl(p.id)} download={`payslip-${p.id}.pdf`} onClick={e => e.stopPropagation()} title="Download"><I.Download size={13}/></a>
-                  {can('payslips:delete') && <button className="btn btn-ghost btn-icon-sm" onClick={e => { e.stopPropagation(); remove(p); }} title="Delete payslip"><I.Trash size={13}/></button>}
+                  {canDelete && <button className="btn btn-ghost btn-icon-sm" onClick={e => { e.stopPropagation(); onRemove(p); }} title="Delete payslip"><I.Trash size={13}/></button>}
                 </td>
               </tr>
             ))}
+            {/* Period totals row */}
+            <tr style={{background:'var(--surface-2)'}}>
+              <td style={{fontWeight:600, fontSize:12.5, color:'var(--text-2)'}}>Period totals</td>
+              <td className="right num" style={{fontWeight:600}}>{NUM(group.totals.hours, 0)}h</td>
+              <td className="right num" style={{fontWeight:600}}>{ZAR(group.totals.publicHolidayPay)}</td>
+              <td className="right num" style={{fontWeight:600}}>{ZAR(group.totals.gross)}</td>
+              <td className="right num" style={{fontWeight:600}}>{ZAR(group.totals.uif)}</td>
+              <td className="right num" style={{fontWeight:700, color:'var(--accent-fg)'}}>{ZAR(group.totals.net)}</td>
+              <td/>
+            </tr>
           </tbody>
         </table>
-      </div>
+      )}
     </div>
   );
 }
 
 export function PayslipBuilder({ go, prefilledEmployeeId }) {
-  const { employees } = useStore();
+  // PayslipBuilder only lets you create payslips for currently-active employees.
+  // The full employees list is still searched in case `prefilledEmployeeId`
+  // points at an inactive profile (deep-linked from somewhere), so the picker
+  // can still resolve their record for display.
+  const { employees, activeEmployees } = useStore();
   const [step, setStep] = useState(1);
-  const [employeeId, setEmployeeId] = useState(prefilledEmployeeId || employees[0]?.id || '');
+  const [employeeId, setEmployeeId] = useState(prefilledEmployeeId || activeEmployees[0]?.id || '');
   const employee = employees.find(e => e.id === employeeId);
 
   // Default to the pay period containing today (runs 21st → 20th).
@@ -132,7 +249,7 @@ export function PayslipBuilder({ go, prefilledEmployeeId }) {
           {step === 1 && (
             <div style={{display:'flex', flexDirection:'column', gap:16}}>
               <h3 style={{margin:0, fontSize:15}}>Choose employee</h3>
-              {employees.map(e => (
+              {activeEmployees.map(e => (
                 <button key={e.id} onClick={() => setEmployeeId(e.id)}
                   style={{
                     display:'flex', alignItems:'center', gap:14, padding:14,

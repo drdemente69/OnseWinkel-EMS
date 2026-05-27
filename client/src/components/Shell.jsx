@@ -30,10 +30,12 @@ const userInitials = (u) => {
 };
 
 export const Sidebar = ({ route, go }) => {
-  const { employees, user, signOut } = useStore();
-  const docCount = employees.reduce((a, e) => a + (e.documents?.length || 0), 0);
-  const psCount = employees.reduce((a, e) => a + (e.payslips?.length || 0), 0);
-  const empCount = employees.filter(e => e.status !== 'archived').length;
+  const { employees, activeEmployees, user, signOut } = useStore();
+  // Badge counts reflect what the rest of the app surfaces (active only) —
+  // the Employees menu shows the full list internally.
+  const docCount = activeEmployees.reduce((a, e) => a + (e.documents?.length || 0), 0);
+  const psCount = activeEmployees.reduce((a, e) => a + (e.payslips?.length || 0), 0);
+  const empCount = activeEmployees.length;
 
   const handleLogout = async () => {
     if (!confirm('Sign out of Onse Winkel EMS?')) return;

@@ -10,20 +10,21 @@ const pad = n => String(n).padStart(2, '0');
 const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
 export default function AttendanceCalendar({ employee: empProp, embedded, onChange }) {
-  const { employees, can } = useStore();
+  const { employees, activeEmployees, can } = useStore();
   const canEdit = can('attendance:edit');
-  const [employeeId, setEmployeeId] = useState(empProp?.id || employees[0]?.id || null);
+  // The standalone attendance screen lists only active employees in its
+  // picker; the embedded view on a profile is unaffected because empProp is
+  // passed in (even for inactive employees, accessed via the Employees menu).
+  const [employeeId, setEmployeeId] = useState(empProp?.id || activeEmployees[0]?.id || null);
   const [employee, setEmployee] = useState(empProp || null);
-  // Default to the pay period that contains today (or, on the embedded profile
-  // view for the seed employee, the seeded Apr 2026 period).
   const initialAnchor = empProp ? new Date(2026, 3, 1) : new Date();
   const [period, setPeriod] = useState(() => payPeriodFor(initialAnchor));
   const [selectedDay, setSelectedDay] = useState(null);
   const [attendance, setAttendance] = useState(empProp?.attendance || []);
 
   useEffect(() => {
-    if (!empProp) setEmployeeId(employees[0]?.id || null);
-  }, [employees, empProp]);
+    if (!empProp) setEmployeeId(activeEmployees[0]?.id || null);
+  }, [activeEmployees, empProp]);
 
   const reload = async (id = employeeId) => {
     if (!id) return;
@@ -99,6 +100,8 @@ export default function AttendanceCalendar({ employee: empProp, embedded, onChan
     onChange?.();
   };
 
+  const [downloadOpen, setDownloadOpen] = useState(false);
+
   if (!employee) return <div className={embedded ? '' : 'page'}><div className="empty"><h4>No employees yet</h4></div></div>;
 
   return (
@@ -107,10 +110,21 @@ export default function AttendanceCalendar({ employee: empProp, embedded, onChan
         <PageHeader title="Attendance"
           subtitle="Pay period runs from the 21st of one month to the 20th of the next"
           actions={
-            <select className="select" style={{width:220}} value={employeeId || ''} onChange={e => setEmployeeId(e.target.value)}>
-              {employees.map(e => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
-            </select>
+            <>
+              <button className="btn" onClick={() => setDownloadOpen(true)}><I.Download size={14}/> Download attendance</button>
+              <select className="select" style={{width:220}} value={employeeId || ''} onChange={e => setEmployeeId(e.target.value)}>
+                {activeEmployees.map(e => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
+              </select>
+            </>
           }/>
+      )}
+
+      {!embedded && downloadOpen && (
+        <DownloadAttendanceModal
+          employees={activeEmployees}
+          defaultEmployeeId={employeeId}
+          defaultPeriod={period}
+          onClose={() => setDownloadOpen(false)}/>
       )}
 
       <div className="grid" style={{gridTemplateColumns:'minmax(0, 1fr) 280px', gap:16}}>
@@ -231,6 +245,23 @@ function DayEditor({ day, employee, onClose, onSave, onDelete, readOnly, avgDail
   const [hours, setHours] = useState(initial.hours || 0);
   const [overtime, setOvertime] = useState(initial.overtime || 0);
 
+  // Lunch break — toggle + start/end pickers. Total minutes flows back into
+  // breakMin which the hours auto-split already consumes.
+  const [lunchTaken, setLunchTaken] = useState(
+    !!(initial.lunch_start || initial.lunch_end || (initial.break_min ?? 0) > 0),
+  );
+  const [lunchStart, setLunchStart] = useState(initial.lunch_start || '12:00');
+  const [lunchEnd, setLunchEnd] = useState(initial.lunch_end || '13:00');
+
+  // Recompute break_min from the lunch times whenever the toggle / times move.
+  useEffect(() => {
+    if (!lunchTaken) { setBreakMin(0); return; }
+    const [sh, sm] = (lunchStart || '0:0').split(':').map(Number);
+    const [eh, em] = (lunchEnd   || '0:0').split(':').map(Number);
+    const mins = (eh * 60 + em) - (sh * 60 + sm);
+    setBreakMin(Number.isFinite(mins) && mins > 0 ? mins : 0);
+  }, [lunchTaken, lunchStart, lunchEnd]);
+
   // When the user picks Public holiday, seed the hours field with the
   // employee's average daily normal hours (the same figure used for sick pay).
   useEffect(() => {
@@ -258,7 +289,9 @@ function DayEditor({ day, employee, onClose, onSave, onDelete, readOnly, avgDail
     onSave({
       type,
       start_time: start, end_time: end,
-      break_min: Number(breakMin),
+      break_min:  Number(breakMin),
+      lunch_start: lunchTaken ? lunchStart : null,
+      lunch_end:   lunchTaken ? lunchEnd   : null,
       hours: Number(hours),
       overtime: Number(overtime),
     });
@@ -302,11 +335,43 @@ function DayEditor({ day, employee, onClose, onSave, onDelete, readOnly, avgDail
         </div>
 
         {usesTimes && (
-          <div className="grid grid-3">
-            <div><label className="label">Start</label><input className="input" type="time" value={start} onChange={e => setStart(e.target.value)}/></div>
-            <div><label className="label">End</label><input className="input" type="time" value={end} onChange={e => setEnd(e.target.value)}/></div>
-            <div><label className="label">Break (min)</label><input className="input num" type="number" min="0" value={breakMin} onChange={e => setBreakMin(e.target.value)}/></div>
-          </div>
+          <>
+            <div className="grid grid-2">
+              <div><label className="label">Start</label><input className="input" type="time" value={start} onChange={e => setStart(e.target.value)}/></div>
+              <div><label className="label">End</label><input className="input" type="time" value={end} onChange={e => setEnd(e.target.value)}/></div>
+            </div>
+
+            <div style={{padding:12, background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:10}}>
+              <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, fontWeight:500}}>
+                <input type="checkbox" checked={lunchTaken}
+                  onChange={e => setLunchTaken(e.target.checked)}/>
+                <span>Lunch break taken</span>
+              </label>
+              {lunchTaken ? (
+                <div className="grid grid-3" style={{gap:10, marginTop:10}}>
+                  <div>
+                    <label className="label">Lunch start</label>
+                    <input className="input" type="time" value={lunchStart}
+                      onChange={e => setLunchStart(e.target.value)}/>
+                  </div>
+                  <div>
+                    <label className="label">Lunch end</label>
+                    <input className="input" type="time" value={lunchEnd}
+                      onChange={e => setLunchEnd(e.target.value)}/>
+                  </div>
+                  <div>
+                    <label className="label">Total break</label>
+                    <input className="input num" type="text" readOnly
+                      value={breakMin > 0 ? `${breakMin} min` : '—'}/>
+                  </div>
+                </div>
+              ) : (
+                <div style={{marginTop:6, fontSize:11.5, color:'var(--text-3)'}}>
+                  No break — full shift counts as worked time.
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         {!usesTimes && type !== 'holiday_paid' && (
@@ -364,4 +429,87 @@ function DayEditor({ day, employee, onClose, onSave, onDelete, readOnly, avgDail
       </div>
     </Modal>
   );
+}
+
+// Download attendance as PDF — pick employee scope + period.
+function DownloadAttendanceModal({ employees, defaultEmployeeId, defaultPeriod, onClose }) {
+  const [scope, setScope] = useState(defaultEmployeeId || 'all');
+  const [preset, setPreset] = useState('current'); // current | last | month | custom
+  const [from, setFrom] = useState(defaultPeriod?.startISO || '');
+  const [to, setTo] = useState(defaultPeriod?.endISO || '');
+
+  useEffect(() => {
+    // When the user changes the preset, seed the date inputs so "custom" picks
+    // up where the dropdown left off without surprises.
+    if (preset !== 'custom') {
+      const p = preset === 'current' ? payPeriodFor(new Date())
+              : preset === 'last'    ? shiftPayPeriod(payPeriodFor(new Date()), -1)
+              : monthRange(new Date());
+      setFrom(p.startISO); setTo(p.endISO);
+    }
+  }, [preset]);
+
+  const download = () => {
+    const params = { employeeId: scope, from, to };
+    const url = api.attendancePdfUrl(params);
+    window.open(url, '_blank');
+  };
+
+  return (
+    <Modal open onClose={onClose}
+      title="Download attendance"
+      footer={
+        <>
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-accent" onClick={download} disabled={!from || !to}>
+            <I.Download size={14}/> Download PDF
+          </button>
+        </>
+      }>
+      <div className="col" style={{gap:14}}>
+        <div>
+          <label className="label">Who</label>
+          <select className="select" value={scope} onChange={e => setScope(e.target.value)}>
+            <option value="all">All employees (combined PDF)</option>
+            {employees.map(e => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Period</label>
+          <select className="select" value={preset} onChange={e => setPreset(e.target.value)}>
+            <option value="current">Current pay period (21st → 20th)</option>
+            <option value="last">Last pay period</option>
+            <option value="month">This calendar month</option>
+            <option value="custom">Custom range</option>
+          </select>
+        </div>
+        <div className="grid grid-2" style={{gap:12}}>
+          <div>
+            <label className="label">From</label>
+            <input className="input" type="date" value={from} onChange={e => { setPreset('custom'); setFrom(e.target.value); }}/>
+          </div>
+          <div>
+            <label className="label">To</label>
+            <input className="input" type="date" value={to} onChange={e => { setPreset('custom'); setTo(e.target.value); }}/>
+          </div>
+        </div>
+        <div style={{padding:12, background:'var(--surface-2)', borderRadius:8, fontSize:12, color:'var(--text-3)', lineHeight:1.55}}>
+          <strong style={{color:'var(--text-2)', display:'block', marginBottom:4}}>What you'll get</strong>
+          A4 PDF with one page per employee. Each page lists every day in the
+          range — date, day, type, start, end, break, hours, OT — followed by
+          a totals row grouped by category (normal, overtime, Sunday/worked
+          holiday, public holiday, sick, leave, grand total).
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function monthRange(date = new Date()) {
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  const startISO = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+  const last = new Date(y, m + 1, 0).getDate();
+  const endISO  = `${y}-${String(m + 1).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+  return { startISO, endISO };
 }

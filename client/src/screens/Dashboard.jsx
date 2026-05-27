@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { I } from '../components/Icons.jsx';
 import { PageHeader } from '../components/Shell.jsx';
+import { useStore } from '../store.jsx';
 import { api, ZAR, NUM, initials, fmtDate } from '../api.js';
 
 const BarChart = ({ data, labels, height = 220, color = 'var(--accent)' }) => {
@@ -46,7 +47,7 @@ const HoursRow = ({ label, value, max, color }) => {
     <div>
       <div style={{display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:12.5}}>
         <span style={{color:'var(--text-2)'}}>{label}</span>
-        <span className="num" style={{fontWeight:500}}>{NUM(value)} h</span>
+        <span className="num" style={{fontWeight:500}}>{NUM(value, 1)} h</span>
       </div>
       <div style={{height:6, borderRadius:99, background:'var(--surface-3)', overflow:'hidden'}}>
         <div style={{width:`${pct}%`, height:'100%', background:color, borderRadius:99}}/>
@@ -54,6 +55,152 @@ const HoursRow = ({ label, value, max, color }) => {
     </div>
   );
 };
+
+// Stacked daily-hours bar chart. Each day stacks normal / overtime / holiday /
+// publicHoliday / sick / leave. Helps spot busy days and trends at a glance.
+const DailyTrend = ({ days, height = 130 }) => {
+  if (!days || days.length === 0) return <div className="empty" style={{padding:18, fontSize:12}}>No attendance in this period</div>;
+  const width = 600;
+  const padL = 36, padR = 8, padT = 8, padB = 22;
+  const w = width - padL - padR;
+  const h = height - padT - padB;
+  const max = Math.max(...days.map(d => d.total), 8);
+  const niceMax = Math.ceil(max / 4) * 4 || 8;
+  const stepX = w / days.length;
+  const barW = Math.max(2, stepX * 0.7);
+
+  const layers = [
+    { key: 'normal',        color: 'var(--text)' },
+    { key: 'overtime',      color: 'oklch(72% 0.15 75)' },
+    { key: 'holiday',       color: 'var(--accent)' },
+    { key: 'publicHoliday', color: 'oklch(60% 0.16 270)' },
+    { key: 'sick',          color: 'var(--danger)' },
+    { key: 'leave',         color: 'var(--info)' },
+  ];
+
+  // X-axis labels: show day-of-month every ~5 days to avoid clutter.
+  const labelEvery = Math.max(1, Math.ceil(days.length / 8));
+
+  return (
+    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
+      <g className="chart-grid">
+        {[0, 0.25, 0.5, 0.75, 1].map(t => (
+          <line key={t} x1={padL} x2={width - padR} y1={padT + h * (1 - t)} y2={padT + h * (1 - t)}/>
+        ))}
+      </g>
+      <g className="chart-axis">
+        {[0, 0.5, 1].map(t => (
+          <text key={t} x={padL - 6} y={padT + h * (1 - t) + 4} textAnchor="end">{Math.round(niceMax * t)}h</text>
+        ))}
+        {days.map((d, i) => {
+          if (i % labelEvery !== 0 && i !== days.length - 1) return null;
+          return <text key={i} x={padL + (i + 0.5) * stepX} y={height - 6} textAnchor="middle">{Number(d.date.slice(-2))}</text>;
+        })}
+      </g>
+      {days.map((d, i) => {
+        let stackY = padT + h;
+        return (
+          <g key={d.date}>
+            {layers.map(l => {
+              const v = Number(d[l.key]) || 0;
+              if (v <= 0) return null;
+              const segH = (v / niceMax) * h;
+              stackY -= segH;
+              return <rect key={l.key}
+                x={padL + i * stepX + (stepX - barW) / 2}
+                y={stackY}
+                width={barW}
+                height={segH}
+                fill={l.color}/>;
+            })}
+            <title>{d.date}: {NUM(d.total, 1)} h</title>
+          </g>
+        );
+      })}
+    </svg>
+  );
+};
+
+const ChartLegend = () => (
+  <div style={{display:'flex', flexWrap:'wrap', gap:10, fontSize:11, color:'var(--text-3)', marginTop:8}}>
+    {[
+      ['Standard',        'var(--text)'],
+      ['Overtime',        'oklch(72% 0.15 75)'],
+      ['Sun & worked hol.', 'var(--accent)'],
+      ['Public holiday',  'oklch(60% 0.16 270)'],
+      ['Sick',            'var(--danger)'],
+      ['Leave',           'var(--info)'],
+    ].map(([label, color]) => (
+      <span key={label} style={{display:'flex', alignItems:'center', gap:5}}>
+        <span style={{width:9, height:9, borderRadius:2, background:color}}/>{label}
+      </span>
+    ))}
+  </div>
+);
+
+function HoursBreakdownCard() {
+  const { activeEmployees } = useStore();
+  const [employeeId, setEmployeeId] = useState('all');
+  const [preset, setPreset] = useState('current'); // current | last | month
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBusy(true);
+    api.hoursBreakdown({ employeeId, preset })
+      .then(r => { if (!cancelled) { setData(r); setBusy(false); } })
+      .catch(e => { console.error(e); if (!cancelled) setBusy(false); });
+    return () => { cancelled = true; };
+  }, [employeeId, preset]);
+
+  const totalHours = data?.hoursBreakdown?.total || 0;
+  const maxBar = Math.max(totalHours, 1);
+  const periodSub = data?.period
+    ? `${fmtDate(data.period.startISO)} → ${fmtDate(data.period.endISO)}`
+    : '';
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <div>
+          <h3>Hours breakdown</h3>
+          <div className="sub">{periodSub}{busy ? ' · loading…' : ''}</div>
+        </div>
+        <div style={{display:'flex', gap:6}}>
+          <select className="select" style={{height:30, fontSize:12, width:140}}
+            value={employeeId} onChange={e => setEmployeeId(e.target.value)}>
+            <option value="all">All employees</option>
+            {activeEmployees.map(e => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
+          </select>
+          <select className="select" style={{height:30, fontSize:12, width:135}}
+            value={preset} onChange={e => setPreset(e.target.value)}>
+            <option value="current">Current period</option>
+            <option value="last">Last period</option>
+            <option value="month">Calendar month</option>
+          </select>
+        </div>
+      </div>
+      <div className="card-pad" style={{display:'flex', flexDirection:'column', gap:14}}>
+        <HoursRow label="Standard"             value={data?.hoursBreakdown.normal        || 0} max={maxBar} color="var(--text)"/>
+        <HoursRow label="Overtime"             value={data?.hoursBreakdown.overtime      || 0} max={maxBar} color="oklch(72% 0.15 75)"/>
+        <HoursRow label="Sunday & worked hol." value={data?.hoursBreakdown.holiday       || 0} max={maxBar} color="var(--accent)"/>
+        <HoursRow label="Public holiday"       value={data?.hoursBreakdown.publicHoliday || 0} max={maxBar} color="oklch(60% 0.16 270)"/>
+        <HoursRow label="Sick"                 value={data?.hoursBreakdown.sick          || 0} max={maxBar} color="var(--danger)"/>
+        <HoursRow label="Annual / unpaid"      value={data?.hoursBreakdown.leave         || 0} max={maxBar} color="var(--info)"/>
+        <hr className="divider" style={{margin:'2px 0'}}/>
+        <div style={{display:'flex', justifyContent:'space-between'}}>
+          <span style={{fontSize:13, color:'var(--text-2)'}}>Total billed hours</span>
+          <strong className="num" style={{fontSize:14}}>{NUM(totalHours, 1)}</strong>
+        </div>
+        <hr className="divider" style={{margin:'8px 0 2px'}}/>
+        <div style={{fontSize:11.5, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:500}}>Daily trend</div>
+        <DailyTrend days={data?.dailyTrend || []}/>
+        <ChartLegend/>
+      </div>
+    </div>
+  );
+}
 
 const QuickAction = ({ icon, label, sub, onClick }) => (
   <button onClick={onClick} className="quick-action" style={{
@@ -76,8 +223,6 @@ export default function Dashboard({ go }) {
   }, []);
 
   if (!data) return <div className="page"><div className="empty"><h4>Loading…</h4></div></div>;
-
-  const totalHours = Object.values(data.hoursBreakdown).reduce((a, b) => a + b, 0);
 
   return (
     <div className="page fade-in">
@@ -125,22 +270,7 @@ export default function Dashboard({ go }) {
             <BarChart data={data.months.map(m => m.value)} labels={data.months.map(m => m.label)}/>
           </div>
         </div>
-        <div className="card">
-          <div className="card-head"><h3>Hours breakdown</h3><span className="badge">This month</span></div>
-          <div className="card-pad" style={{display:'flex', flexDirection:'column', gap:14}}>
-            <HoursRow label="Standard"             value={data.hoursBreakdown.normal}        max={Math.max(totalHours,1)} color="var(--text)"/>
-            <HoursRow label="Overtime"             value={data.hoursBreakdown.overtime}      max={Math.max(totalHours,1)} color="oklch(72% 0.15 75)"/>
-            <HoursRow label="Sunday & worked hol." value={data.hoursBreakdown.holiday}       max={Math.max(totalHours,1)} color="var(--accent)"/>
-            <HoursRow label="Public holiday"       value={data.hoursBreakdown.publicHoliday || 0} max={Math.max(totalHours,1)} color="oklch(60% 0.16 270)"/>
-            <HoursRow label="Sick"                 value={data.hoursBreakdown.sick}          max={Math.max(totalHours,1)} color="var(--danger)"/>
-            <HoursRow label="Annual leave"         value={data.hoursBreakdown.leave}         max={Math.max(totalHours,1)} color="var(--info)"/>
-            <hr className="divider" style={{margin:'2px 0'}}/>
-            <div style={{display:'flex', justifyContent:'space-between'}}>
-              <span style={{fontSize:13, color:'var(--text-2)'}}>Total billed hours</span>
-              <strong className="num" style={{fontSize:14}}>{NUM(totalHours)}</strong>
-            </div>
-          </div>
-        </div>
+        <HoursBreakdownCard/>
       </div>
 
       <div className="grid grid-2" style={{marginBottom:16}}>

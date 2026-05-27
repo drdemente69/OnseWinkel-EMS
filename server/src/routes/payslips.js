@@ -20,12 +20,15 @@ function getRules() {
   return row ? JSON.parse(row.value) : { overtimeMultiplier: 1.5, holidayMultiplier: 2, uifRate: 0.01 };
 }
 
-// All payslips (joined with employee for list view)
+// All payslips (joined with employee for list view).
+// Inactive/archived employees' payslips are hidden here — they remain
+// reachable from inside the Employees menu via that employee's profile.
 router.get('/', (req, res) => {
   const rows = db.prepare(`
     SELECT p.*, e.first_name, e.last_name, e.employee_no, e.position
     FROM payslips p
     JOIN employees e ON e.id = p.employee_id
+    WHERE e.status = 'active'
     ORDER BY p.pay_date DESC`).all();
   res.json(rows);
 });
