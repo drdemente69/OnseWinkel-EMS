@@ -30,7 +30,7 @@ const userInitials = (u) => {
 };
 
 export const Sidebar = ({ route, go }) => {
-  const { employees, activeEmployees, user, signOut } = useStore();
+  const { employees, activeEmployees, user, signOut, pendingLeaveCount } = useStore();
   // Badge counts reflect what the rest of the app surfaces (active only) —
   // the Employees menu shows the full list internally.
   const docCount = activeEmployees.reduce((a, e) => a + (e.documents?.length || 0), 0);
@@ -43,12 +43,13 @@ export const Sidebar = ({ route, go }) => {
   };
 
   const items = [
-    { id: 'dashboard', label: 'Dashboard', icon: <I.Dashboard /> },
-    { id: 'employees', label: 'Employees', icon: <I.Users />, badge: empCount },
-    { id: 'attendance', label: 'Attendance', icon: <I.Calendar /> },
-    { id: 'payslips', label: 'Payslips', icon: <I.Receipt />, badge: psCount },
-    { id: 'documents', label: 'Documents', icon: <I.Folder />, badge: docCount },
-    { id: 'ocr', label: 'Timesheet OCR', icon: <I.ScanText /> },
+    { id: 'dashboard',  label: 'Dashboard',     icon: <I.Dashboard /> },
+    { id: 'employees',  label: 'Employees',     icon: <I.Users />,    badge: empCount },
+    { id: 'attendance', label: 'Attendance',    icon: <I.Calendar /> },
+    { id: 'leave',      label: 'Leave Approval', icon: <I.CheckCircle />, badge: pendingLeaveCount || undefined },
+    { id: 'payslips',   label: 'Payslips',      icon: <I.Receipt />,  badge: psCount },
+    { id: 'documents',  label: 'Documents',     icon: <I.Folder />,   badge: docCount },
+    { id: 'ocr',        label: 'Timesheet OCR', icon: <I.ScanText /> },
   ];
   const bottom = [{ id: 'settings', label: 'Settings', icon: <I.Settings /> }];
 

@@ -122,9 +122,54 @@ router.put('/:employeeId/:date', requirePermission('attendance:edit'), (req, res
       overtime    = excluded.overtime,
       note        = excluded.note,
       updated_at  = datetime('now')`).run(row);
+
+  // Reverse sync: if the operator marked this day as a leave type without
+  // going through Leave Approval, create a pending request so the owner can
+  // review it. Approving it later keeps the attendance row; rejecting rolls
+  // it back. We skip when the row was already written by Leave Approval
+  // (note already begins with "Leave#") to avoid duplicates.
+  reverseSyncLeaveRequest(employeeId, date, row);
+
   const saved = db.prepare('SELECT * FROM attendance WHERE employee_id = ? AND date = ?').get(employeeId, date);
   res.json(saved);
 });
+
+// Inspect a freshly-saved attendance row and, if it's a leave-typed entry
+// that isn't already tied to a leave request, file a pending leave_request
+// for the owner to review.
+function reverseSyncLeaveRequest(employeeId, date, row) {
+  const reverseMap = {
+    annual: 'annual',
+    sick: 'sick',
+    unpaid: 'unpaid',
+  };
+  const targetLeaveType = reverseMap[row.type];
+  if (!targetLeaveType) return;
+  if (row.note && row.note.startsWith('Leave#')) return;     // already linked
+
+  // Is there already a leave_request covering this date for this employee?
+  const existing = db.prepare(`SELECT id FROM leave_requests
+    WHERE employee_id = ?
+      AND status != 'rejected'
+      AND start_date <= ? AND end_date >= ?`).get(employeeId, date, date);
+  if (existing) return;                                       // nothing to do
+
+  const tx = db.transaction(() => {
+    const info = db.prepare(`INSERT INTO leave_requests
+      (employee_id, leave_type, start_date, end_date, days_requested, days_count,
+       status, reason, attendance_written)
+      VALUES (?, ?, ?, ?, 1, 1, 'pending', ?, 1)`)
+      .run(employeeId, targetLeaveType, date, date,
+           `Auto-created from attendance entry on ${date} — please confirm.`);
+    const id = info.lastInsertRowid;
+    // Tag the attendance row so the leave's rollback can find it later.
+    db.prepare(`UPDATE attendance SET note = ? WHERE employee_id = ? AND date = ?`)
+      .run(`Leave#${id}: ${targetLeaveType} (auto · pending review)`, employeeId, date);
+    db.prepare(`INSERT INTO activity (employee_id, kind, title, detail) VALUES (?, 'leave', ?, ?)`)
+      .run(employeeId, `Leave entry needs review (${targetLeaveType})`, date);
+  });
+  tx();
+}
 
 // Bulk replace within a date range.
 router.post('/:employeeId/bulk', requirePermission('attendance:edit'), (req, res) => {

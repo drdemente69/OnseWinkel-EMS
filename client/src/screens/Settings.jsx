@@ -25,6 +25,7 @@ export default function Settings({ go }) {
   const SECTIONS = [
     { id: 0, label: 'Company' },
     { id: 1, label: 'Payroll rules' },
+    { id: 6, label: 'Leave entitlements' },
     { id: 2, label: 'Data & backup' },
     { id: 3, label: 'Preferences' },
     { id: 4, label: 'Account' },
@@ -51,6 +52,7 @@ export default function Settings({ go }) {
         <div className="col" style={{gap:16}}>
           <CompanyCard settings={settings} refresh={refresh} flash={flash} canEdit={canEdit}/>
           <PayrollRulesCard settings={settings} refresh={refresh} flash={flash} canEdit={canEdit}/>
+          <LeaveEntitlementsCard settings={settings} refresh={refresh} flash={flash} canEdit={canEdit}/>
           <DataCard settings={settings} importing={importing} canEdit={canEdit}
             exportBackup={exportBackup} importBackup={importBackup}
             onSavedLocal={() => { refresh(); flash('Local backup saved.'); }}
@@ -169,6 +171,85 @@ function PayrollRulesCard({ settings, refresh, flash, canEdit }) {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ===== Leave entitlements (owner-editable) =====
+function LeaveEntitlementsCard({ settings, refresh, flash, canEdit }) {
+  const defaults = {
+    annual_days: 18, sick_days_per_year: 10, sick_cycle_years: 3,
+    family_days: 3, parental_days: 10, maternity_months: 4,
+    compassionate_days: 3, study_days: 0,
+  };
+  const original = { ...defaults, ...(settings?.leave_entitlements || {}) };
+  const [form, setForm] = useState(original);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setForm({ ...defaults, ...(settings?.leave_entitlements || {}) }); }, [settings?.leave_entitlements]);
+  const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const dirty = JSON.stringify(form) !== JSON.stringify(original);
+  const save = async () => {
+    setBusy(true);
+    try {
+      const clean = Object.fromEntries(
+        Object.entries(form).map(([k, v]) => [k, Math.max(0, Number(v) || 0)]),
+      );
+      await api.saveSetting('leave_entitlements', clean);
+      await refresh();
+      flash('Leave entitlements saved.');
+    } catch (e) { alert(e.message); }
+    setBusy(false);
+  };
+
+  const FIELDS = [
+    { key: 'annual_days',          label: 'Annual leave',          unit: 'days / year',         note: 'BCEA § 20 minimum is 15. Onse Winkel default: 18.' },
+    { key: 'sick_days_per_year',   label: 'Sick leave',            unit: 'days / year',         note: 'BCEA § 22: 30 days per 3-year cycle (10/year averaged).' },
+    { key: 'sick_cycle_years',     label: 'Sick leave cycle',      unit: 'years',               note: 'Used to compute the rolling sick-leave window.' },
+    { key: 'family_days',          label: 'Family responsibility', unit: 'days / year',         note: 'BCEA § 27.' },
+    { key: 'parental_days',        label: 'Parental leave',        unit: 'days (unpaid · UIF)', note: 'BCEA § 25A. Unpaid by employer; employee claims UIF.' },
+    { key: 'maternity_months',     label: 'Maternity leave',       unit: 'months (unpaid · UIF)', note: 'BCEA § 25. Unpaid by employer.' },
+    { key: 'compassionate_days',   label: 'Compassionate',         unit: 'days / year',         note: 'Company policy.' },
+    { key: 'study_days',           label: 'Study leave',           unit: 'days / year',         note: 'Discretionary. 0 = not offered.' },
+  ];
+
+  return (
+    <div className="card" id="section-6">
+      <div className="card-head">
+        <h3>Leave entitlements</h3>
+        <span className="muted-2">SA BCEA defaults — adjust to match your company policy</span>
+      </div>
+      <div className="card-pad">
+        <div className="grid grid-2" style={{gap:16}}>
+          {FIELDS.map(f => (
+            <div key={f.key} style={{padding:12, border:'1px solid var(--border)', borderRadius:8, background:'var(--surface-2)'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginBottom:4}}>
+                <span style={{fontSize:12.5, color:'var(--text-2)', fontWeight:500}}>{f.label}</span>
+                <div style={{display:'flex', alignItems:'center', gap:6}}>
+                  <input className="input num" type="number" step="0.5" min="0"
+                    disabled={!canEdit}
+                    value={form[f.key] ?? 0}
+                    onChange={e => setF(f.key, e.target.value)}
+                    style={{width:80, height:30, fontSize:13, textAlign:'right'}}/>
+                  <span style={{fontSize:11.5, color:'var(--text-3)', minWidth:120}}>{f.unit}</span>
+                </div>
+              </div>
+              <div style={{fontSize:11.5, color:'var(--text-3)'}}>{f.note}</div>
+            </div>
+          ))}
+        </div>
+        {canEdit && (
+          <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:16}}>
+            {dirty && <button className="btn btn-ghost" onClick={() => setForm(original)}>Cancel</button>}
+            <button className="btn btn-accent" onClick={save} disabled={!dirty || busy}>
+              <I.Save/> {busy ? 'Saving…' : 'Save entitlements'}
+            </button>
+          </div>
+        )}
+        <div style={{marginTop:14, padding:12, background:'oklch(95% 0.04 240)', color:'oklch(35% 0.13 240)', borderRadius:8, fontSize:12.5, lineHeight:1.55, display:'flex', alignItems:'flex-start', gap:8}}>
+          <I.AlertCircle size={14} style={{flexShrink:0, marginTop:2}}/>
+          <span>These numbers drive the Leave Approval dashboard's per-employee balances. Lowering a number below what's already been used in the current cycle just means that employee shows 0 left — historical decisions stand.</span>
+        </div>
       </div>
     </div>
   );

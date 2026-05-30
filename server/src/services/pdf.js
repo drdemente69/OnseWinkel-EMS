@@ -108,6 +108,8 @@ export async function generatePayslipPDF({ outPath, employee, payslip, priorSlip
 
   const w = Number(payslip.hourly_wage || employee.hourly_wage || 0);
   const publicHoliday = Number(payslip.public_holiday_pay) || 0;
+  const annual = Number(payslip.annual_pay) || 0;
+  const sick = Number(payslip.sick_pay) || 0;
   const earnRows = [
     { label: 'Standard Pay',         hours: payslip.normal_hours,        rate: w,       current: payslip.normal_pay,        ytd: ytd.normal },
     { label: 'Overtime Pay',         hours: payslip.overtime_hours,      rate: w * 1.5, current: payslip.overtime_pay,      ytd: ytd.overtime },
@@ -121,13 +123,20 @@ export async function generatePayslipPDF({ outPath, employee, payslip, priorSlip
       empty: !publicHoliday,
     },
     {
+      label: 'Annual Leave Pay',
+      hours: payslip.annual_hours,
+      rate: w,
+      current: annual,
+      ytd: ytd.annual,
+      empty: !annual,
+    },
+    { label: 'Sick Pay', hours: payslip.sick_hours, rate: w, current: sick, ytd: ytd.sick, empty: !sick },
+    {
       label: 'Commission and Bonus',
       current: (Number(payslip.commission) || 0) + (Number(payslip.bonus) || 0),
       ytd: ytd.commission + ytd.bonus,
       empty: !(Number(payslip.commission) || Number(payslip.bonus)),
     },
-    { label: 'Sick Pay', current: payslip.sick_pay, ytd: ytd.sick, empty: !payslip.sick_pay },
-    { label: 'Expenses', empty: true },
   ];
 
   drawEarningsTable(doc, leftX, doc.y, pageWidth, earnRows, payslip, ytd);

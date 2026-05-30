@@ -116,6 +116,34 @@ async function run() {
     console.log('  ✓ seeded owner confirmation password (default: usamabaig454)');
   }
 
+  // Leave entitlements — Onse Winkel defaults (≥ SA BCEA statutory minimums).
+  const existingLeaveCfg = db.prepare(`SELECT value FROM settings WHERE key = 'leave_entitlements'`).get();
+  if (!existingLeaveCfg) {
+    setSetting.run('leave_entitlements', JSON.stringify({
+      annual_days:          18,   // Company policy (BCEA § 20 minimum is 15)
+      sick_days_per_year:   10,   // 30 / 3-year cycle averaged
+      sick_cycle_years:     3,    // BCEA § 22
+      family_days:          3,    // BCEA § 27
+      parental_days:        10,   // BCEA § 25A
+      maternity_months:     4,    // BCEA § 25 (employee claims UIF)
+      compassionate_days:   3,
+      study_days:           0,
+    }));
+    console.log('  ✓ seeded leave entitlements (18 annual + SA BCEA defaults)');
+  } else {
+    // Back-fill: if the live setting still has annual_days = 15 (the old
+    // default) and the owner hasn't touched anything else past defaults,
+    // bump it to 18 so existing installs match the new policy.
+    try {
+      const cur = JSON.parse(existingLeaveCfg.value);
+      if (Number(cur.annual_days) === 15) {
+        cur.annual_days = 18;
+        setSetting.run('leave_entitlements', JSON.stringify(cur));
+        console.log('  ✓ back-filled annual_days 15 → 18 in leave_entitlements');
+      }
+    } catch {}
+  }
+
   // Already seeded?
   const existing = db.prepare('SELECT COUNT(*) AS c FROM employees').get();
   if (existing.c > 0) {

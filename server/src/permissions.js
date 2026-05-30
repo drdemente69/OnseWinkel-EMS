@@ -9,6 +9,8 @@ export const PERMS = [
   { id: 'employees:edit',    label: 'Edit employees',       group: 'Employees' },
   { id: 'employees:delete',  label: 'Delete employees',     group: 'Employees' },
   { id: 'attendance:edit',   label: 'Edit attendance',      group: 'Attendance' },
+  { id: 'leave:create',      label: 'Create leave requests', group: 'Leave' },
+  { id: 'leave:decide',      label: 'Approve / reject leave', group: 'Leave' },
   { id: 'documents:upload',  label: 'Upload documents',     group: 'Documents' },
   { id: 'documents:delete',  label: 'Delete documents',     group: 'Documents' },
   { id: 'payslips:create',   label: 'Generate payslips',    group: 'Payslips' },

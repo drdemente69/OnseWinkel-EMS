@@ -36,13 +36,20 @@ export function StoreProvider({ children }) {
     return () => { cancelled = true; off(); };
   }, []);
 
+  const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
+
   const refresh = useCallback(async () => {
     if (authStatus !== 'signedIn') return;
     setError(null);
     try {
-      const [emps, sets] = await Promise.all([api.listEmployees(), api.getSettings()]);
+      const [emps, sets, pending] = await Promise.all([
+        api.listEmployees(),
+        api.getSettings(),
+        api.listLeaveRequests({ status: 'pending' }).catch(() => []),
+      ]);
       setEmployees(emps);
       setSettings(sets);
+      setPendingLeaveCount(Array.isArray(pending) ? pending.length : 0);
       setLoading(false);
     } catch (e) {
       setError(e.message);
@@ -86,6 +93,7 @@ export function StoreProvider({ children }) {
     isOwner, can,
     employees, activeEmployees, settings, loading, error, refresh,
     setEmployees, setSettings,
+    pendingLeaveCount,
   };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

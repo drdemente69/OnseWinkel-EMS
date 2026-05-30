@@ -157,6 +157,23 @@ export const api = {
   // ---- Settings
   getSettings: () => req('/settings'),
   saveSetting: (key, value) => req(`/settings/${key}`, { method: 'PUT', body: value }),
+
+  // ---- Leave Approval
+  leaveTypes: () => req('/leave-requests/types'),
+  leaveEntitlements: () => req('/leave-requests/entitlements'),
+  listLeaveRequests: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return req(`/leave-requests${qs ? `?${qs}` : ''}`);
+  },
+  previewLeave: (body) => req('/leave-requests/preview', { method: 'POST', body }),
+  createLeaveRequest: (body) => req('/leave-requests', { method: 'POST', body }),
+  updateLeaveRequest: (id, body) => req(`/leave-requests/${id}`, { method: 'PATCH', body }),
+  deleteLeaveRequest: (id) => req(`/leave-requests/${id}`, { method: 'DELETE' }),
+  leaveBalances: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return req(`/leave-requests/balances${qs ? `?${qs}` : ''}`);
+  },
+  leaveDashboard: () => req('/leave-requests/dashboard'),
 };
 
 // Shared formatters — Onse Winkel uses dot as the decimal separator and comma

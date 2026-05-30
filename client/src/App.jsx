@@ -10,6 +10,7 @@ import DocumentsAll from './screens/Documents.jsx';
 import OCRFlow from './screens/OCR.jsx';
 import Settings from './screens/Settings.jsx';
 import Login from './screens/Login.jsx';
+import LeaveApproval from './screens/LeaveApproval.jsx';
 
 function Crumbs({ route, param, employees }) {
   const crumbs = [{ label: 'Onse Winkel', go: () => { location.hash = '#/dashboard'; } }];
@@ -22,6 +23,10 @@ function Crumbs({ route, param, employees }) {
     }
   }
   else if (route === 'attendance') crumbs.push({ label: 'Attendance' });
+  else if (route === 'leave') {
+    crumbs.push({ label: 'Leave Approval', go: () => { location.hash = '#/leave'; } });
+    if (param === 'dashboard') crumbs.push({ label: 'Dashboard' });
+  }
   else if (route === 'payslips') {
     crumbs.push({ label: 'Payslips', go: () => { location.hash = '#/payslips'; } });
     if (param === 'new') crumbs.push({ label: 'New' });
@@ -99,6 +104,7 @@ function AppShell() {
       return <Profile employeeId={param} tab={subparam || 'overview'} go={go}/>;
     }
     if (route === 'attendance') return <AttendanceCalendar/>;
+    if (route === 'leave') return <LeaveApproval go={go} subroute={param}/>;
     if (route === 'payslips') {
       if (param === 'new') {
         if (!can('payslips:create')) return <Forbidden message="You don't have permission to generate payslips."/>;

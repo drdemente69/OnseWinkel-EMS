@@ -359,7 +359,10 @@ export function PayslipBuilder({ go, prefilledEmployeeId }) {
                   {(calc.earnings.publicHolidayPay || 0) > 0 && (
                     <tr><td>Public holiday pay (1×)</td><td className="right num">{NUM(calc.hours.publicHoliday, 1)}</td><td className="right num">R{calc.rates.publicHoliday.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.publicHolidayPay)}</strong></td></tr>
                   )}
-                  {calc.earnings.sickPay > 0 && <tr><td>Sick pay</td><td className="right num">{calc.sickDays}d</td><td className="right num">{NUM(calc.avgDaily,1)}h avg</td><td className="right num"><strong>{ZAR(calc.earnings.sickPay)}</strong></td></tr>}
+                  {(calc.earnings.annualPay || 0) > 0 && (
+                    <tr><td>Annual leave pay (1×)</td><td className="right num">{NUM(calc.hours.annual, 1)}</td><td className="right num">R{calc.rates.annual.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.annualPay)}</strong></td></tr>
+                  )}
+                  {calc.earnings.sickPay > 0 && <tr><td>Sick pay (1×)</td><td className="right num">{NUM(calc.hours.sick, 1)}</td><td className="right num">R{calc.rates.sick.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.sickPay)}</strong></td></tr>}
                   {Number(commission) > 0 && <tr><td>Commission</td><td className="right">–</td><td className="right">–</td><td className="right num"><strong>{ZAR(Number(commission))}</strong></td></tr>}
                   {Number(bonus) > 0 && <tr><td>Bonus</td><td className="right">–</td><td className="right">–</td><td className="right num"><strong>{ZAR(Number(bonus))}</strong></td></tr>}
                 </tbody>
@@ -388,6 +391,7 @@ export function PayslipBuilder({ go, prefilledEmployeeId }) {
               <PsLine label="Overtime pay"          value={calc?.earnings.overtimePay || 0}/>
               <PsLine label="Sunday & worked holiday" value={calc?.earnings.holidayPay || 0}/>
               {(calc?.earnings.publicHolidayPay || 0) > 0 && <PsLine label="Public holiday pay" value={calc.earnings.publicHolidayPay}/>}
+              {(calc?.earnings.annualPay || 0) > 0 && <PsLine label="Annual leave pay" value={calc.earnings.annualPay}/>}
               {(calc?.earnings.sickPay || 0) > 0 && <PsLine label="Sick pay" value={calc.earnings.sickPay}/>}
               {Number(commission) > 0 && <PsLine label="Commission" value={Number(commission)}/>}
               {Number(bonus) > 0 && <PsLine label="Bonus" value={Number(bonus)}/>}
