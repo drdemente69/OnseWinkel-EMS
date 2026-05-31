@@ -151,8 +151,11 @@ async function run() {
     db.exec('DELETE FROM activity; DELETE FROM payslips; DELETE FROM documents; DELETE FROM attendance; DELETE FROM timesheet_imports; DELETE FROM employees;');
   }
 
-  const logoPath = placeLogoFromDesign();
-  setSetting.run('company', JSON.stringify({ ...COMPANY, logoPath: logoPath || '' }));
+  // Store just the basename so the path is portable across hosts — the
+  // PDF services resolve it against config.dataDir at render time.
+  const logoFs = placeLogoFromDesign();
+  const logoPath = logoFs ? path.basename(logoFs) : '';
+  setSetting.run('company', JSON.stringify({ ...COMPANY, logoPath }));
   setSetting.run('payroll_rules', JSON.stringify({
     overtimeMultiplier: 1.5,
     holidayMultiplier: 2.0,

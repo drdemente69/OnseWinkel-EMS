@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import PDFDocument from 'pdfkit';
 import { ytdForEmployee } from './payroll.js';
+import { resolveLogoPath } from './logo.js';
 
 const BROWN = '#3d2817';
 const BROWN_DARK = '#2a2418';
@@ -39,13 +40,16 @@ export async function generatePayslipPDF({ outPath, employee, payslip, priorSlip
 
   // ===== Header =====
   const headerTop = doc.y;
-  // Logo
-  if (company?.logoPath && fs.existsSync(company.logoPath)) {
+  // Logo — resolve via the portable helper so any reasonable settings
+  // value still finds the file (absolute path on the seed host, basename
+  // on AWS, or just the data/logo.* fallback).
+  const logoPath = resolveLogoPath(company?.logoPath);
+  if (logoPath) {
     try {
       doc.save();
       // Solid black rounded rect bg
       doc.roundedRect(leftX, headerTop, 44, 44, 6).fill('#000');
-      doc.image(company.logoPath, leftX, headerTop, { fit: [44, 44] });
+      doc.image(logoPath, leftX, headerTop, { fit: [44, 44] });
       doc.restore();
     } catch (e) { /* ignore unsupported logo formats */ }
   } else {

@@ -10,6 +10,7 @@
 
 import fs from 'node:fs';
 import PDFDocument from 'pdfkit';
+import { resolveLogoPath } from './logo.js';
 
 // ----- shared helpers ------------------------------------------------------
 
@@ -39,11 +40,12 @@ function drawHeader(doc, company, title, subtitle) {
   const leftX = doc.page.margins.left;
   const pageW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const top = doc.y;
-  if (company?.logoPath && fs.existsSync(company.logoPath)) {
+  const logoPath = resolveLogoPath(company?.logoPath);
+  if (logoPath) {
     try {
       doc.save();
       doc.roundedRect(leftX, top, 44, 44, 6).fill('#000');
-      doc.image(company.logoPath, leftX, top, { fit: [44, 44] });
+      doc.image(logoPath, leftX, top, { fit: [44, 44] });
       doc.restore();
     } catch {}
   }
@@ -425,7 +427,11 @@ function generateTermination(doc, { company, employee, fields }) {
   inlineLabel(doc, 'Date:', fmtDate(fields.date || new Date().toISOString().slice(0, 10)));
   doc.moveDown(0.3);
   const sal = ({male:'Mr.',female:'Ms.'})[fields.salutation] || 'Mr./Ms.';
-  inlineLabel(doc, `${sal} ${employee.first_name} ${employee.last_name}`, '');
+  // Bold name on its own line (no inlineLabel — that would print an
+  // unwanted "____________________________" placeholder after the name).
+  doc.font('Helvetica-Bold').fontSize(10.5).fillColor(TEXT)
+    .text(`${sal} ${employee.first_name} ${employee.last_name}`);
+  doc.font('Helvetica');
   inlineLabel(doc, 'ID Number:',      employee.id_number && employee.id_number !== '——' ? employee.id_number : '____________________________');
   inlineLabel(doc, 'Employee Number:', employee.employee_no);
 

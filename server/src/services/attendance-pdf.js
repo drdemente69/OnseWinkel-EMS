@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import PDFDocument from 'pdfkit';
+import { resolveLogoPath } from './logo.js';
 
 const BROWN = '#3d2817';
 const BROWN_DARK = '#2a2418';
@@ -64,12 +65,13 @@ function summarise(rows) {
 
 function drawHeader(doc, leftX, pageWidth, company, period, scope) {
   const headerTop = doc.y;
-  // Logo
-  if (company?.logoPath && fs.existsSync(company.logoPath)) {
+  // Logo — portable resolution (absolute path / basename in dataDir / fallback)
+  const logoPath = resolveLogoPath(company?.logoPath);
+  if (logoPath) {
     try {
       doc.save();
       doc.roundedRect(leftX, headerTop, 44, 44, 6).fill('#000');
-      doc.image(company.logoPath, leftX, headerTop, { fit: [44, 44] });
+      doc.image(logoPath, leftX, headerTop, { fit: [44, 44] });
       doc.restore();
     } catch {}
   } else {
