@@ -14,6 +14,7 @@ import settingsRouter from './routes/settings.js';
 import dashboardRouter from './routes/dashboard.js';
 import authRouter from './routes/auth.js';
 import leaveRouter from './routes/leave.js';
+import docTemplatesRouter from './routes/document-templates.js';
 import { requireAuth } from './services/auth.js';
 
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/ocr', ocrRouter);
 app.use('/api/backup', backupRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/leave-requests', leaveRouter);
+app.use('/api/document-templates', docTemplatesRouter);
 
 // Serve company logo (and other small public assets) under /static/.
 app.use('/static', express.static(config.dataDir, {

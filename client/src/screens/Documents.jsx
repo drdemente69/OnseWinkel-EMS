@@ -12,6 +12,11 @@ const TAG_COLORS = {
 };
 
 export default function DocumentsAll({ go }) {
+  const [generateOpen, setGenerateOpen] = useState(false);
+  return <DocumentsAllInner go={go} generateOpen={generateOpen} setGenerateOpen={setGenerateOpen}/>;
+}
+
+function DocumentsAllInner({ go, generateOpen, setGenerateOpen }) {
   const { refresh, can } = useStore();
   const [docs, setDocs] = useState([]);
   const [q, setQ] = useState('');
@@ -34,6 +39,11 @@ export default function DocumentsAll({ go }) {
         actions={
           <>
             <a className="btn" href="/api/backup/export"><I.Download/> Export ZIP</a>
+            {can('documents:upload') && (
+              <button className="btn" onClick={() => setGenerateOpen(true)}>
+                <I.FileText/> Generate document
+              </button>
+            )}
             {can('documents:upload') && <button className="btn btn-accent" onClick={() => setUploadOpen(true)}><I.Upload/> Upload</button>}
           </>
         }/>
@@ -97,6 +107,7 @@ export default function DocumentsAll({ go }) {
       </div>
 
       <UploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={() => { setUploadOpen(false); reload(); refresh(); }}/>
+      <GenerateDocumentModal open={generateOpen} onClose={() => setGenerateOpen(false)} onGenerated={() => { setGenerateOpen(false); reload(); refresh(); }}/>
     </div>
   );
 }
@@ -209,3 +220,163 @@ const tagBtnStyle = (active) => ({
   color: active ? 'var(--text)' : 'var(--text-3)',
   fontSize:11.5, fontWeight:500,
 });
+
+// ---------------------------------------------------------------------------
+// Generate document modal — picks an active employee + a template, renders
+// the template's field schema dynamically, and calls /document-templates/generate.
+function GenerateDocumentModal({ open, onClose, onGenerated }) {
+  const { activeEmployees: employees } = useStore();
+  const [templates, setTemplates] = useState([]);
+  const [templateId, setTemplateId] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [fields, setFields] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  const template = templates.find(t => t.id === templateId) || null;
+
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
+    setBusy(false);
+    setEmployeeId(employees[0]?.id || '');
+    setLoadingTemplates(true);
+    api.documentTemplates()
+      .then(list => {
+        setTemplates(list);
+        if (list[0]) setTemplateId(list[0].id);
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setLoadingTemplates(false));
+  }, [open]);
+
+  // When the template changes, prime field defaults from the schema.
+  useEffect(() => {
+    if (!template) { setFields({}); return; }
+    const defaults = {};
+    for (const f of template.fields) {
+      if (f.default !== undefined) defaults[f.id] = String(f.default);
+      else defaults[f.id] = '';
+    }
+    setFields(defaults);
+  }, [templateId]);
+
+  const setField = (id, v) => setFields(prev => ({ ...prev, [id]: v }));
+
+  const generate = async () => {
+    setError(null);
+    if (!templateId) { setError('Pick a template.'); return; }
+    if (!employeeId) { setError('Pick an employee.'); return; }
+    setBusy(true);
+    try {
+      // Strip empty strings so the server uses its own defaults for omitted fields.
+      const payload = {};
+      for (const [k, v] of Object.entries(fields)) {
+        if (v !== '' && v != null) payload[k] = v;
+      }
+      await api.generateDocument(templateId, employeeId, payload);
+      onGenerated?.();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} wide
+      title="Generate document"
+      footer={
+        <>
+          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn-accent" onClick={generate} disabled={busy || loadingTemplates || !template}>
+            <I.FileText/> {busy ? 'Generating…' : 'Generate & save to vault'}
+          </button>
+        </>
+      }>
+      <div className="col" style={{gap:14}}>
+        <div className="grid grid-2" style={{gap:14}}>
+          <div>
+            <label className="label">Employee</label>
+            <select className="select" value={employeeId} onChange={e => setEmployeeId(e.target.value)}>
+              <option value="">— choose employee —</option>
+              {employees.map(e => (
+                <option key={e.id} value={e.id}>{e.first_name} {e.last_name} · #{e.employee_no}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Document template</label>
+            <select className="select" value={templateId} onChange={e => setTemplateId(e.target.value)} disabled={loadingTemplates}>
+              <option value="">— choose template —</option>
+              {templates.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {template && (
+          <div className="muted" style={{fontSize:12.5, padding:'8px 12px', background:'var(--surface-2)', borderRadius:8, borderLeft:'3px solid var(--accent)'}}>
+            {template.description}
+            <div style={{marginTop:4, fontSize:11.5}}>
+              Saves to the vault with tag: <span className={`badge ${TAG_COLORS[template.tag] || 'badge'}`}>{template.tag}</span>
+            </div>
+          </div>
+        )}
+
+        {template && template.fields && template.fields.length > 0 && (
+          <div className="grid grid-2" style={{gap:14}}>
+            {template.fields.map(f => (
+              <TemplateFieldInput
+                key={f.id}
+                field={f}
+                value={fields[f.id] ?? ''}
+                onChange={(v) => setField(f.id, v)}
+              />
+            ))}
+          </div>
+        )}
+
+        {error && <div style={{padding:12, background:'var(--danger-soft)', color:'var(--danger)', borderRadius:8, fontSize:12.5}}>{error}</div>}
+      </div>
+    </Modal>
+  );
+}
+
+function TemplateFieldInput({ field, value, onChange }) {
+  const wide = field.type === 'textarea';
+  const wrap = { gridColumn: wide ? '1 / -1' : 'auto' };
+
+  if (field.type === 'select') {
+    return (
+      <div style={wrap}>
+        <label className="label">{field.label}</label>
+        <select className="select" value={value} onChange={e => onChange(e.target.value)}>
+          <option value="">—</option>
+          {(field.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+    );
+  }
+  if (field.type === 'textarea') {
+    return (
+      <div style={wrap}>
+        <label className="label">{field.label}</label>
+        <textarea className="textarea" rows={4} value={value} onChange={e => onChange(e.target.value)} placeholder={field.placeholder || ''}/>
+      </div>
+    );
+  }
+  return (
+    <div style={wrap}>
+      <label className="label">{field.label}</label>
+      <input
+        className="input"
+        type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+        step={field.type === 'number' ? 'any' : undefined}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={field.placeholder || ''}
+      />
+    </div>
+  );
+}

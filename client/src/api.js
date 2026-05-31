@@ -158,6 +158,11 @@ export const api = {
   getSettings: () => req('/settings'),
   saveSetting: (key, value) => req(`/settings/${key}`, { method: 'PUT', body: value }),
 
+  // ---- Document templates
+  documentTemplates: () => req('/document-templates'),
+  generateDocument: (templateId, employeeId, fields) =>
+    req('/document-templates/generate', { method: 'POST', body: { templateId, employeeId, fields } }),
+
   // ---- Leave Approval
   leaveTypes: () => req('/leave-requests/types'),
   leaveEntitlements: () => req('/leave-requests/entitlements'),
