@@ -65,14 +65,15 @@ function summarise(rows) {
 
 function drawHeader(doc, leftX, pageWidth, company, period, scope) {
   const headerTop = doc.y;
-  // Logo — portable resolution (absolute path / basename in dataDir / fallback)
+  // Logo — portable resolution + no backing rect (the logo file already has
+  // its own card design; a black box behind it produced a dark band when the
+  // logo's aspect ratio didn't match the slot).
   const logoPath = resolveLogoPath(company?.logoPath);
   if (logoPath) {
     try {
-      doc.save();
-      doc.roundedRect(leftX, headerTop, 44, 44, 6).fill('#000');
-      doc.image(logoPath, leftX, headerTop, { fit: [44, 44] });
-      doc.restore();
+      doc.image(logoPath, leftX, headerTop, {
+        fit: [48, 48], align: 'center', valign: 'center',
+      });
     } catch {}
   } else {
     doc.save();

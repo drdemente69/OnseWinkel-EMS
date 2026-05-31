@@ -40,13 +40,15 @@ function drawHeader(doc, company, title, subtitle) {
   const leftX = doc.page.margins.left;
   const pageW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const top = doc.y;
+  // No backing rect — the logo file already has its own self-contained
+  // design; a black box behind it produced a stray dark band when the logo's
+  // aspect ratio didn't match the slot.
   const logoPath = resolveLogoPath(company?.logoPath);
   if (logoPath) {
     try {
-      doc.save();
-      doc.roundedRect(leftX, top, 44, 44, 6).fill('#000');
-      doc.image(logoPath, leftX, top, { fit: [44, 44] });
-      doc.restore();
+      doc.image(logoPath, leftX, top, {
+        fit: [48, 48], align: 'center', valign: 'center',
+      });
     } catch {}
   }
   doc.fillColor(BROWN).font('Helvetica-Bold').fontSize(15)

@@ -15,7 +15,7 @@ const COMPANY = {
   email: 'onsewinkel22@gmail.com',
   contact: 'Rahat Baig',
   contactPhone: '0743500122',
-  logoPath: 'logo.jpg',
+  logoPath: 'logo.png',
 };
 
 const setSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
@@ -75,16 +75,25 @@ function buildCedrickAttendance() {
 }
 
 function placeLogoFromDesign() {
-  const candidate = path.resolve(__dirname, '..', '..', '..', 'OnseWinkel-EMS-design', 'logo.jpg');
-  const dest = path.join(config.dataDir, 'logo.jpg');
-  if (fs.existsSync(candidate) && !fs.existsSync(dest)) {
-    fs.copyFileSync(candidate, dest);
+  // Prefer a transparent PNG when one is available — falls back to the
+  // legacy JPG asset only if no PNG is found anywhere.
+  const dataPng = path.join(config.dataDir, 'logo.png');
+  const dataJpg = path.join(config.dataDir, 'logo.jpg');
+  if (fs.existsSync(dataPng)) return dataPng;
+  if (fs.existsSync(dataJpg)) return dataJpg;
+  const candidates = [
+    path.resolve(__dirname, '..', '..', '..', 'OnseWinkel-EMS-design', 'logo.png'),
+    path.resolve(__dirname, '..', '..', '..', 'OnseWinkel-EMS-design', 'logo.jpg'),
+    path.resolve('/tmp/onse_design/uploads/logo-1778884641784.jpg'),
+  ];
+  for (const src of candidates) {
+    if (fs.existsSync(src)) {
+      const dest = path.join(config.dataDir, path.basename(src).toLowerCase().endsWith('.png') ? 'logo.png' : 'logo.jpg');
+      fs.copyFileSync(src, dest);
+      return dest;
+    }
   }
-  const fallback = path.resolve('/tmp/onse_design/uploads/logo-1778884641784.jpg');
-  if (!fs.existsSync(dest) && fs.existsSync(fallback)) {
-    fs.copyFileSync(fallback, dest);
-  }
-  return fs.existsSync(dest) ? dest : null;
+  return null;
 }
 
 async function run() {

@@ -42,15 +42,16 @@ export async function generatePayslipPDF({ outPath, employee, payslip, priorSlip
   const headerTop = doc.y;
   // Logo — resolve via the portable helper so any reasonable settings
   // value still finds the file (absolute path on the seed host, basename
-  // on AWS, or just the data/logo.* fallback).
+  // on AWS, or just the data/logo.* fallback). We deliberately don't draw
+  // a backing rect — the Onse Winkel logo file already has its own card
+  // design, and a black box behind it produced a stray dark band when the
+  // logo's aspect ratio didn't match the box.
   const logoPath = resolveLogoPath(company?.logoPath);
   if (logoPath) {
     try {
-      doc.save();
-      // Solid black rounded rect bg
-      doc.roundedRect(leftX, headerTop, 44, 44, 6).fill('#000');
-      doc.image(logoPath, leftX, headerTop, { fit: [44, 44] });
-      doc.restore();
+      doc.image(logoPath, leftX, headerTop, {
+        fit: [48, 48], align: 'center', valign: 'center',
+      });
     } catch (e) { /* ignore unsupported logo formats */ }
   } else {
     doc.save();
