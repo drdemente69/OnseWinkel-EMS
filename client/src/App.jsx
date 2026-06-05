@@ -11,6 +11,7 @@ import OCRFlow from './screens/OCR.jsx';
 import Settings from './screens/Settings.jsx';
 import Login from './screens/Login.jsx';
 import LeaveApproval from './screens/LeaveApproval.jsx';
+import { InvoicingList, InvoiceEditor } from './screens/Invoicing.jsx';
 
 function Crumbs({ route, param, employees }) {
   const crumbs = [{ label: 'Onse Winkel', go: () => { location.hash = '#/dashboard'; } }];
@@ -31,6 +32,11 @@ function Crumbs({ route, param, employees }) {
     crumbs.push({ label: 'Payslips', go: () => { location.hash = '#/payslips'; } });
     if (param === 'new') crumbs.push({ label: 'New' });
     if (param === 'view') crumbs.push({ label: 'View' });
+  }
+  else if (route === 'invoices') {
+    crumbs.push({ label: 'Invoicing', go: () => { location.hash = '#/invoices'; } });
+    if (param === 'new') crumbs.push({ label: 'New' });
+    else if (param === 'edit') crumbs.push({ label: 'Edit' });
   }
   else if (route === 'documents') crumbs.push({ label: 'Documents' });
   else if (route === 'ocr') crumbs.push({ label: 'Timesheet OCR' });
@@ -117,6 +123,17 @@ function AppShell() {
         return <PayslipView employeeId={parts[3]} payslipId={parts[4]} go={go}/>;
       }
       return <PayslipsList go={go}/>;
+    }
+    if (route === 'invoices') {
+      if (param === 'new') {
+        if (!can('invoices:manage')) return <Forbidden message="You don't have permission to create quotes or invoices."/>;
+        return <InvoiceEditor go={go} mode="new" newType={subparam}/>;
+      }
+      if (param === 'edit') {
+        if (!can('invoices:manage')) return <Forbidden message="You don't have permission to edit quotes or invoices."/>;
+        return <InvoiceEditor go={go} mode="edit" invoiceId={subparam}/>;
+      }
+      return <InvoicingList go={go}/>;
     }
     if (route === 'documents') return <DocumentsAll go={go}/>;
     if (route === 'ocr') {

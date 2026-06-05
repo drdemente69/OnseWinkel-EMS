@@ -156,12 +156,12 @@ a { color: inherit; text-decoration: none; }
 .sb-brand-logo {
   width: 28px; height: 28px;
   border-radius: 7px;
-  background: #000;
+  background: #fff;
   display: grid; place-items: center;
   overflow: hidden;
   flex-shrink: 0;
 }
-.sb-brand-logo img { width: 100%; height: 100%; object-fit: cover; }
+.sb-brand-logo img { width: 100%; height: 100%; object-fit: contain; padding: 2px; }
 .sb-brand-text { display: flex; flex-direction: column; line-height: 1.1; }
 .sb-brand-text strong { font-size: 13.5px; font-weight: 600; }
 .sb-brand-text span { font-size: 11px; color: var(--text-3); }

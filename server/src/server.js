@@ -15,6 +15,7 @@ import dashboardRouter from './routes/dashboard.js';
 import authRouter from './routes/auth.js';
 import leaveRouter from './routes/leave.js';
 import docTemplatesRouter from './routes/document-templates.js';
+import invoicesRouter from './routes/invoices.js';
 import { requireAuth } from './services/auth.js';
 
 const app = express();
@@ -41,6 +42,7 @@ app.use('/api/backup', backupRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/leave-requests', leaveRouter);
 app.use('/api/document-templates', docTemplatesRouter);
+app.use('/api/invoices', invoicesRouter);
 
 // Serve company logo (and other small public assets) under /static/.
 app.use('/static', express.static(config.dataDir, {

@@ -48,6 +48,7 @@ export const Sidebar = ({ route, go }) => {
     { id: 'attendance', label: 'Attendance',    icon: <I.Calendar /> },
     { id: 'leave',      label: 'Leave Approval', icon: <I.CheckCircle />, badge: pendingLeaveCount || undefined },
     { id: 'payslips',   label: 'Payslips',      icon: <I.Receipt />,  badge: psCount },
+    { id: 'invoices',   label: 'Invoicing',     icon: <I.Invoice /> },
     { id: 'documents',  label: 'Documents',     icon: <I.Folder />,   badge: docCount },
     { id: 'ocr',        label: 'Timesheet OCR', icon: <I.ScanText /> },
   ];
@@ -56,7 +57,7 @@ export const Sidebar = ({ route, go }) => {
   return (
     <aside className="sidebar">
       <div className="sb-brand">
-        <div className="sb-brand-logo"><img src="/static/logo.jpg" alt="Onse Winkel"/></div>
+        <div className="sb-brand-logo"><img src="/static/logo.png" alt="Onse Winkel"/></div>
         <div className="sb-brand-text">
           <strong>Onse Winkel</strong>
           <span>Employee Management</span>

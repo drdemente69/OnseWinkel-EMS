@@ -15,6 +15,8 @@ const COMPANY = {
   email: 'onsewinkel22@gmail.com',
   contact: 'Rahat Baig',
   contactPhone: '0743500122',
+  reg: '2018/100425/07',
+  vat: '4290320029',
   logoPath: 'logo.png',
 };
 

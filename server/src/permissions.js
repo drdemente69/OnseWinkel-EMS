@@ -15,6 +15,7 @@ export const PERMS = [
   { id: 'documents:delete',  label: 'Delete documents',     group: 'Documents' },
   { id: 'payslips:create',   label: 'Generate payslips',    group: 'Payslips' },
   { id: 'payslips:delete',   label: 'Delete payslips',      group: 'Payslips' },
+  { id: 'invoices:manage',   label: 'Create / edit quotes & invoices', group: 'Invoicing' },
   { id: 'ocr:use',           label: 'Use timesheet OCR',    group: 'OCR' },
   { id: 'settings:edit',     label: 'Edit settings + backup', group: 'Settings' },
 ];

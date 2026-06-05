@@ -179,6 +179,19 @@ export const api = {
     return req(`/leave-requests/balances${qs ? `?${qs}` : ''}`);
   },
   leaveDashboard: () => req('/leave-requests/dashboard'),
+
+  // ---- Quotations & Invoices
+  listInvoices: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return req(`/invoices${qs ? `?${qs}` : ''}`);
+  },
+  getInvoice: (id) => req(`/invoices/${id}`),
+  createInvoice: (body) => req('/invoices', { method: 'POST', body }),
+  updateInvoice: (id, body) => req(`/invoices/${id}`, { method: 'PUT', body }),
+  deleteInvoice: (id) => req(`/invoices/${id}`, { method: 'DELETE' }),
+  nextInvoiceNumber: (type) => req(`/invoices/next-number?type=${encodeURIComponent(type)}`),
+  invoiceDefaults: () => req('/invoices/defaults'),
+  invoicePdfUrl: (id) => `${base}/invoices/${id}/pdf?token=${encodeURIComponent(auth.token || '')}`,
 };
 
 // Shared formatters — Onse Winkel uses dot as the decimal separator and comma

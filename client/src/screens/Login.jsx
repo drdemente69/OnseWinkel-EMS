@@ -39,8 +39,8 @@ export default function Login({ onSignedIn }) {
         boxShadow:'var(--shadow-lg)',
       }}>
         <div style={{display:'flex', alignItems:'center', gap:14, marginBottom:24}}>
-          <div style={{width:44, height:44, borderRadius:10, background:'#000', overflow:'hidden', flexShrink:0}}>
-            <img src="/static/logo.jpg" alt="Onse Winkel" style={{width:'100%', height:'100%', objectFit:'cover'}}/>
+          <div style={{width:44, height:44, borderRadius:10, background:'#fff', overflow:'hidden', flexShrink:0}}>
+            <img src="/static/logo.png" alt="Onse Winkel" style={{width:'100%', height:'100%', objectFit:'contain', padding:3}}/>
           </div>
           <div>
             <div style={{fontSize:16, fontWeight:600, letterSpacing:'-0.01em'}}>Onse Winkel</div>
@@ -81,16 +81,6 @@ export default function Login({ onSignedIn }) {
             <I.Lock size={14}/> {busy ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-
-        <div style={{
-          marginTop:22, padding:'12px 14px', borderRadius:10,
-          background:'var(--surface-2)', border:'1px solid var(--border)',
-          fontSize:12, color:'var(--text-3)', lineHeight:1.55,
-        }}>
-          <strong style={{color:'var(--text-2)', display:'block', marginBottom:2, fontSize:12}}>First-time use</strong>
-          Default credentials are <code className="num">admin</code> / <code className="num">onsewinkel</code>.
-          Change the password from Settings → Account after signing in.
-        </div>
       </div>
     </div>
   );

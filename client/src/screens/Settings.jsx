@@ -106,7 +106,7 @@ function CompanyCard({ settings, refresh, flash, canEdit }) {
   };
   return (
     <div className="card" id="section-0">
-      <div className="card-head"><h3>Company information</h3><span className="muted-2">Appears on every payslip</span></div>
+      <div className="card-head"><h3>Company information</h3><span className="muted-2">Appears on payslips, quotations &amp; invoices</span></div>
       <div className="card-pad">
         <div className="grid grid-2" style={{gap:14}}>
           <EditField label="Company name" value={form.name} onChange={v => setF('name', v)} disabled={!canEdit}/>
@@ -115,6 +115,8 @@ function CompanyCard({ settings, refresh, flash, canEdit }) {
           <EditField label="Phone"        value={form.phone} onChange={v => setF('phone', v)} disabled={!canEdit}/>
           <EditField label="Payslip contact name" value={form.contact} onChange={v => setF('contact', v)} disabled={!canEdit}/>
           <EditField label="Payslip contact phone" value={form.contactPhone} onChange={v => setF('contactPhone', v)} disabled={!canEdit}/>
+          <EditField label="Registration number" value={form.reg} onChange={v => setF('reg', v)} disabled={!canEdit}/>
+          <EditField label="VAT number" value={form.vat} onChange={v => setF('vat', v)} disabled={!canEdit}/>
         </div>
         {canEdit && (
           <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:16}}>
