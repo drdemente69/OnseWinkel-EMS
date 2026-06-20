@@ -43,6 +43,9 @@ function summarise(rows) {
   let normal = 0, overtime = 0, holiday = 0, publicHoliday = 0, sick = 0, leave = 0;
   let workDays = 0, totalDailyHours = 0;
   for (const a of rows) {
+    // Unpaid days carry no working hours and are intentionally excluded from
+    // the timesheet — skip them entirely so they don't show or count.
+    if (a.type === 'unpaid') continue;
     const h = Number(a.hours) || 0;
     const ot = Number(a.overtime) || 0;
     if (a.type === 'normal') {
@@ -54,7 +57,7 @@ function summarise(rows) {
       publicHoliday += h;
     } else if (a.type === 'sick') {
       sick += h;
-    } else if (a.type === 'annual' || a.type === 'unpaid') {
+    } else if (a.type === 'annual') {
       leave += h;
     }
   }
@@ -91,7 +94,7 @@ function drawHeader(doc, leftX, pageWidth, company, period, scope) {
     .text('ATTENDANCE', leftX, headerTop, { align: 'right', characterSpacing: 1.2 });
   doc.font('Helvetica').fontSize(9).fill(MUTED)
     .text(scope, leftX, headerTop + 22, { align: 'right' });
-  doc.text(period.label || `${period.startISO} → ${period.endISO}`, leftX, doc.y, { align: 'right' });
+  doc.text(period.label || `${period.startISO} – ${period.endISO}`, leftX, doc.y, { align: 'right' });
 
   doc.moveTo(leftX, headerTop + 60).lineTo(leftX + pageWidth, headerTop + 60)
     .lineWidth(2.2).strokeColor(BROWN).stroke();
@@ -110,7 +113,7 @@ function drawEmployeeStrip(doc, leftX, pageWidth, employee, period) {
   doc.fillColor(MUTED).font('Helvetica').fontSize(9)
     .text(`${employee.position || ''}  ·  #${employee.employee_no || '—'}`, leftX + 10, doc.y);
   doc.fillColor(BROWN).font('Helvetica-Bold').fontSize(12)
-    .text(`${fmtDate(period.startISO)} → ${fmtDate(period.endISO)}`, leftX + pageWidth / 2, y + 16);
+    .text(`${fmtDate(period.startISO)} – ${fmtDate(period.endISO)}`, leftX + pageWidth / 2, y + 16);
   doc.restore();
   doc.y = y + 46;
 }
@@ -155,7 +158,9 @@ function drawAttendanceTable(doc, leftX, pageWidth, rows) {
       doc.addPage();
       y = doc.page.margins.top;
     }
-    const empty = !r.hasEntry;
+    // Unpaid days are reported as blank (like a no-entry day) and contribute
+    // no hours — the date/day still print so the calendar stays continuous.
+    const empty = !r.hasEntry || r.type === 'unpaid';
     const lunch = (r.lunch_start && r.lunch_end)
       ? `${r.lunch_start} - ${r.lunch_end}`
       : '–';

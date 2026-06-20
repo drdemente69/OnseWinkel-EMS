@@ -13,7 +13,7 @@ function getCompany() {
 }
 
 function resolveAttendancePeriod({ preset, from, to, label }) {
-  if (from && to) return { startISO: String(from), endISO: String(to), label: label || `${from} → ${to}` };
+  if (from && to) return { startISO: String(from), endISO: String(to), label: label || `${from} – ${to}` };
   if (preset === 'last')  return previousPayPeriodFor(new Date());
   if (preset === 'month') return calendarMonthFor(new Date());
   return payPeriodFor(new Date());

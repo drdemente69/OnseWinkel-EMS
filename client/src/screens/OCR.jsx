@@ -527,10 +527,10 @@ function Row({ row, index, updateRow }) {
           value={row.breakMin ?? 0} onChange={e => updateRow(index, { breakMin: Number(e.target.value) })}/>
       </td>
       <td className="right">
-        <input className="input num" type="number" step="0.25" style={{height:28, fontSize:11.5, textAlign:'right', width:64}} value={row.hours} onChange={e => updateRow(index, { hours: Number(e.target.value) })}/>
+        <input className="input num" type="number" step="0.01" style={{height:28, fontSize:11.5, textAlign:'right', width:64}} value={row.hours} onChange={e => updateRow(index, { hours: Number(e.target.value) })}/>
       </td>
       <td className="right">
-        <input className="input num" type="number" step="0.25" disabled={!usesTimes && row.type !== 'normal'}
+        <input className="input num" type="number" step="0.01" disabled={!usesTimes && row.type !== 'normal'}
           style={{height:28, fontSize:11.5, textAlign:'right', width:64, opacity: usesTimes ? 1 : 0.5}}
           value={row.overtime} onChange={e => updateRow(index, { overtime: Number(e.target.value) })}/>
       </td>

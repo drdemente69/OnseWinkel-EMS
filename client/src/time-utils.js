@@ -6,10 +6,13 @@
 //   - Sunday / Holiday: every hour is paid at 2×; no overtime split.
 //   - Sick / Annual / Unpaid: hours stay in the `hours` field as entered.
 //
-// All numeric results are rounded to the nearest 0.25 hour to match what
-// timesheets typically record (8 h, 8.25 h, 8.5 h, …).
+// Hours are kept as the EXACT worked time expressed as a decimal, rounded only
+// to 2 places (to the cent of an hour) so payroll multiplies the real number —
+// e.g. 08:00–16:40 minus a 30-min lunch = 8.17 h, not snapped to 8.25.
 
-export const round25 = (n) => Math.round(Number(n || 0) * 4) / 4;
+export const round2 = (n) => Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100;
+// Backwards-compatible alias (was a quarter-hour rounder) — now 2-decimal.
+export const round25 = round2;
 
 function parseTime(t) {
   if (!t) return null;
@@ -52,9 +55,9 @@ export function splitHoursFromTimes({ start, end, breakMin = 0, type = 'normal' 
   // shifts go entirely to `hours` (paid at the holiday rate).
   if (type === 'normal') {
     return {
-      hours: round25(Math.min(total, 8)),
-      overtime: round25(Math.max(0, total - 8)),
+      hours: round2(Math.min(total, 8)),
+      overtime: round2(Math.max(0, total - 8)),
     };
   }
-  return { hours: round25(total), overtime: 0 };
+  return { hours: round2(total), overtime: 0 };
 }

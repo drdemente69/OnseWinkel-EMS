@@ -272,7 +272,7 @@ function drawEarnRow(doc, colXs, colWidths, y, r) {
   doc.font('Helvetica').fontSize(9).fillColor(r.empty ? EMPTY : TEXT);
   doc.text(r.label, colXs[0] + 4, y + 3, { width: colWidths[0] - 8 });
   doc.font('Courier').fontSize(9).fillColor(r.empty ? EMPTY : '#3a3a3a');
-  doc.text(r.empty ? '–' : NUM(r.hours, 0), colXs[1], y + 3, { width: colWidths[1] - 4, align: 'right' });
+  doc.text(r.empty ? '–' : NUM(r.hours, 2), colXs[1], y + 3, { width: colWidths[1] - 4, align: 'right' });
   doc.text(r.empty ? '–' : (r.rate ? r.rate.toFixed(2) : '–'), colXs[2], y + 3, { width: colWidths[2] - 4, align: 'right' });
   doc.font(r.empty ? 'Courier' : 'Courier-Bold').fillColor(r.empty ? EMPTY : TEXT);
   doc.text(r.empty ? '–' : ZAR(r.current || 0), colXs[3], y + 3, { width: colWidths[3] - 4, align: 'right' });

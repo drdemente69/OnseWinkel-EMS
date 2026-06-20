@@ -279,10 +279,19 @@ function DayEditor({ day, employee, onClose, onSave, onDelete, readOnly, avgDail
   useEffect(() => {
     if (type === 'holiday_paid') {
       const avg = Number(avgDaily) > 0 ? Number(avgDaily) : 8;
-      setHours(Math.round(avg * 4) / 4);
+      setHours(Math.round((avg + Number.EPSILON) * 100) / 100);
       setOvertime(0);
     }
   }, [type, avgDaily]);
+
+  // Unpaid leave carries no working hours — zero them so the day never
+  // contributes hours to pay or the timesheet.
+  useEffect(() => {
+    if (type === 'unpaid') {
+      setHours(0);
+      setOvertime(0);
+    }
+  }, [type]);
 
   // Auto-split worked time into normal / overtime whenever times, break, or
   // type change. Normal days cap normal hours at 8 and push the rest into
@@ -409,10 +418,10 @@ function DayEditor({ day, employee, onClose, onSave, onDelete, readOnly, avgDail
           </>
         )}
 
-        {!usesTimes && type !== 'holiday_paid' && (
+        {!usesTimes && type !== 'holiday_paid' && type !== 'unpaid' && (
           <div>
             <label className="label">Hours</label>
-            <input className="input num" type="number" step="0.25" value={hours} onChange={e => setHours(Number(e.target.value))}/>
+            <input className="input num" type="number" step="0.01" value={hours} onChange={e => setHours(Number(e.target.value))}/>
           </div>
         )}
 
@@ -420,11 +429,11 @@ function DayEditor({ day, employee, onClose, onSave, onDelete, readOnly, avgDail
           <div className="grid grid-2">
             <div>
               <label className="label">Normal hours {type === 'normal' && <span className="muted-2" style={{fontWeight:400}}>(capped at 8 / day)</span>}</label>
-              <input className="input num" type="number" step="0.25" value={hours} onChange={e => setHours(Number(e.target.value))}/>
+              <input className="input num" type="number" step="0.01" value={hours} onChange={e => setHours(Number(e.target.value))}/>
             </div>
             <div>
               <label className="label">Overtime hours {type === 'normal' && <span className="muted-2" style={{fontWeight:400}}>(everything past 8)</span>}</label>
-              <input className="input num" type="number" step="0.25" value={overtime} onChange={e => setOvertime(Number(e.target.value))}/>
+              <input className="input num" type="number" step="0.01" value={overtime} onChange={e => setOvertime(Number(e.target.value))}/>
             </div>
           </div>
         )}
@@ -432,7 +441,7 @@ function DayEditor({ day, employee, onClose, onSave, onDelete, readOnly, avgDail
         {type === 'holiday_paid' && (
           <div>
             <label className="label">Hours <span className="muted-2" style={{fontWeight:400}}>(avg daily normal hours)</span></label>
-            <input className="input num" type="number" step="0.25" value={hours} onChange={e => setHours(Number(e.target.value))}/>
+            <input className="input num" type="number" step="0.01" value={hours} onChange={e => setHours(Number(e.target.value))}/>
           </div>
         )}
 
@@ -459,7 +468,8 @@ function DayEditor({ day, employee, onClose, onSave, onDelete, readOnly, avgDail
             </>
           )}
           {type === 'sick' && <>Sick pay = monthly avg daily hours × hourly rate</>}
-          {(type === 'annual' || type === 'unpaid') && <>Leave day — pay rules apply per policy</>}
+          {type === 'annual' && <>Leave day — pay rules apply per policy</>}
+          {type === 'unpaid' && <>Unpaid day — 0 working hours, no pay. Left blank on the attendance timesheet.</>}
         </div>
       </div>
     </Modal>

@@ -169,7 +169,7 @@ function PayslipPeriodCard({ group, defaultOpen, canDelete, onRowClick, onRemove
                     </div>
                   </div>
                 </td>
-                <td className="right num muted">{NUM((p.normal_hours||0)+(p.overtime_hours||0)+(p.holiday_hours||0)+(p.public_holiday_hours||0), 0)}h</td>
+                <td className="right num muted">{NUM((p.normal_hours||0)+(p.overtime_hours||0)+(p.holiday_hours||0)+(p.public_holiday_hours||0), 2)}h</td>
                 <td className="right num muted">{ZAR(p.public_holiday_pay)}</td>
                 <td className="right num">{ZAR(p.gross)}</td>
                 <td className="right num muted">{ZAR(p.uif)}</td>
@@ -185,7 +185,7 @@ function PayslipPeriodCard({ group, defaultOpen, canDelete, onRowClick, onRemove
             {/* Period totals row */}
             <tr style={{background:'var(--surface-2)'}}>
               <td style={{fontWeight:600, fontSize:12.5, color:'var(--text-2)'}}>Period totals</td>
-              <td className="right num" style={{fontWeight:600}}>{NUM(group.totals.hours, 0)}h</td>
+              <td className="right num" style={{fontWeight:600}}>{NUM(group.totals.hours, 2)}h</td>
               <td className="right num" style={{fontWeight:600}}>{ZAR(group.totals.publicHolidayPay)}</td>
               <td className="right num" style={{fontWeight:600}}>{ZAR(group.totals.gross)}</td>
               <td className="right num" style={{fontWeight:600}}>{ZAR(group.totals.uif)}</td>
@@ -353,16 +353,16 @@ export function PayslipBuilder({ go, prefilledEmployeeId }) {
               <table className="table" style={{borderRadius:0, fontSize:12.5}}>
                 <thead><tr><th>Item</th><th className="right">Hours</th><th className="right">Rate</th><th className="right">Amount</th></tr></thead>
                 <tbody>
-                  <tr><td>Standard pay</td><td className="right num">{NUM(calc.hours.normal)}</td><td className="right num">R{calc.rates.normal.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.normalPay)}</strong></td></tr>
-                  <tr><td>Overtime pay (1.5×)</td><td className="right num">{NUM(calc.hours.overtime)}</td><td className="right num">R{calc.rates.overtime.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.overtimePay)}</strong></td></tr>
-                  <tr><td>Sunday & worked holiday (2×)</td><td className="right num">{NUM(calc.hours.holiday)}</td><td className="right num">R{calc.rates.holiday.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.holidayPay)}</strong></td></tr>
+                  <tr><td>Standard pay</td><td className="right num">{NUM(calc.hours.normal, 2)}</td><td className="right num">R{calc.rates.normal.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.normalPay)}</strong></td></tr>
+                  <tr><td>Overtime pay (1.5×)</td><td className="right num">{NUM(calc.hours.overtime, 2)}</td><td className="right num">R{calc.rates.overtime.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.overtimePay)}</strong></td></tr>
+                  <tr><td>Sunday & worked holiday (2×)</td><td className="right num">{NUM(calc.hours.holiday, 2)}</td><td className="right num">R{calc.rates.holiday.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.holidayPay)}</strong></td></tr>
                   {(calc.earnings.publicHolidayPay || 0) > 0 && (
-                    <tr><td>Public holiday pay (1×)</td><td className="right num">{NUM(calc.hours.publicHoliday, 1)}</td><td className="right num">R{calc.rates.publicHoliday.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.publicHolidayPay)}</strong></td></tr>
+                    <tr><td>Public holiday pay (1×)</td><td className="right num">{NUM(calc.hours.publicHoliday, 2)}</td><td className="right num">R{calc.rates.publicHoliday.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.publicHolidayPay)}</strong></td></tr>
                   )}
                   {(calc.earnings.annualPay || 0) > 0 && (
-                    <tr><td>Annual leave pay (1×)</td><td className="right num">{NUM(calc.hours.annual, 1)}</td><td className="right num">R{calc.rates.annual.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.annualPay)}</strong></td></tr>
+                    <tr><td>Annual leave pay (1×)</td><td className="right num">{NUM(calc.hours.annual, 2)}</td><td className="right num">R{calc.rates.annual.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.annualPay)}</strong></td></tr>
                   )}
-                  {calc.earnings.sickPay > 0 && <tr><td>Sick pay (1×)</td><td className="right num">{NUM(calc.hours.sick, 1)}</td><td className="right num">R{calc.rates.sick.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.sickPay)}</strong></td></tr>}
+                  {calc.earnings.sickPay > 0 && <tr><td>Sick pay (1×)</td><td className="right num">{NUM(calc.hours.sick, 2)}</td><td className="right num">R{calc.rates.sick.toFixed(2)}</td><td className="right num"><strong>{ZAR(calc.earnings.sickPay)}</strong></td></tr>}
                   {Number(commission) > 0 && <tr><td>Commission</td><td className="right">–</td><td className="right">–</td><td className="right num"><strong>{ZAR(Number(commission))}</strong></td></tr>}
                   {Number(bonus) > 0 && <tr><td>Bonus</td><td className="right">–</td><td className="right">–</td><td className="right num"><strong>{ZAR(Number(bonus))}</strong></td></tr>}
                 </tbody>
@@ -439,7 +439,7 @@ function HoursCard({ label, value }) {
   return (
     <div style={{padding:12, background:'var(--surface)', borderRadius:8, border:'1px solid var(--border)'}}>
       <div style={{fontSize:11, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>{label}</div>
-      <div className="num" style={{fontSize:18, fontWeight:600}}>{NUM(value)}<span style={{fontSize:12, color:'var(--text-3)', marginLeft:2}}>h</span></div>
+      <div className="num" style={{fontSize:18, fontWeight:600}}>{NUM(value, 2)}<span style={{fontSize:12, color:'var(--text-3)', marginLeft:2}}>h</span></div>
     </div>
   );
 }

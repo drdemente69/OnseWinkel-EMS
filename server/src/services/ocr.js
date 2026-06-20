@@ -297,11 +297,13 @@ function parseRow(line, periodHint) {
   }
   if (hours === 0 && totalFromTimes > 0) {
     // Apply the 8-hour rule: normal day caps at 8, anything beyond is OT.
+    // Keep exact decimal hours (2 dp), not snapped to the nearest quarter.
+    const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
     if (type === 'normal') {
-      hours = Math.round(Math.min(totalFromTimes, 8) * 4) / 4;
-      overtime = Math.round(Math.max(0, totalFromTimes - 8) * 4) / 4;
+      hours = round2(Math.min(totalFromTimes, 8));
+      overtime = round2(Math.max(0, totalFromTimes - 8));
     } else {
-      hours = Math.round(totalFromTimes * 4) / 4;
+      hours = round2(totalFromTimes);
     }
   }
   if (hours === 0 && candidateNumbers.length === 1) {
